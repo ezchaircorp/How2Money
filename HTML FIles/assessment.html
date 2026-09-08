@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assessment — Meridian Financial Group</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0A1628;
+      --slate:  #1E3A5F;
+      --gold:   #C9A84C;
+      --gold-lt:#E8D5A3;
+      --warm:   #F7F5F0;
+      --text:   #2C2C2C;
+      --muted:  #6B7280;
+      --white:  #FFFFFF;
+      --border: #E2DDD5;
+      --error:  #C0392B;
+      --success:#1A7A4A;
+    }
+
+    body { font-family:'Inter', sans-serif; color:var(--text); background:var(--white); }
+
+    /* ── NAV ── */
+    nav {
+      position:fixed; top:0; width:100%; z-index:100;
+      background:rgba(10,22,40,0.97);
+      backdrop-filter:blur(8px);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 5%; height:68px;
+      border-bottom:1px solid rgba(201,168,76,0.2);
+    }
+    .nav-logo { font-family:'Playfair Display',serif; font-size:1.25rem; font-weight:600; color:var(--white); }
+    .nav-logo span { color:var(--gold); }
+    .nav-links { display:flex; gap:2.5rem; list-style:none; }
+    .nav-links a { color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.875rem; font-weight:500; letter-spacing:0.04em; transition:color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color:var(--gold); }
+    .nav-cta { background:var(--gold); color:var(--navy); padding:0.5rem 1.25rem; border-radius:2px; font-size:0.8rem; font-weight:600; text-decoration:none; letter-spacing:0.05em; }
+
+    /* ── PAGE HEADER ── */
+    .page-header { background:var(--navy); padding:140px 8% 80px; }
+    .breadcrumb { font-size:0.78rem; color:rgba(255,255,255,0.4); margin-bottom:1.25rem; }
+    .breadcrumb a { color:var(--gold); text-decoration:none; }
+    .page-header h1 { font-family:'Playfair Display',serif; font-size:clamp(2.25rem,4vw,3.25rem); font-weight:700; color:var(--white); line-height:1.15; margin-bottom:1rem; }
+    .page-header p { font-size:1rem; color:rgba(255,255,255,0.55); max-width:55ch; line-height:1.75; }
+
+    /* ── MAIN LAYOUT ── */
+    .assessment-wrap {
+      display:grid; grid-template-columns:1fr 420px;
+      gap:5%; padding:80px 8%;
+      max-width:1300px; margin:0 auto;
+    }
+
+    /* ── DYNAMIC IMAGE PANEL ── */
+    .image-panel { position:sticky; top:88px; align-self:start; }
+    .image-frame {
+      position:relative; background:var(--warm);
+      border-radius:2px; overflow:hidden;
+      aspect-ratio:3/4;
+    }
+    #dynamicImage {
+      width:100%; height:100%; object-fit:cover;
+      display:block;
+      transition:opacity 0.4s ease;
+    }
+    .image-overlay {
+      position:absolute; bottom:0; left:0; right:0;
+      background:linear-gradient(transparent, rgba(10,22,40,0.85));
+      padding:2rem 1.5rem 1.5rem;
+    }
+    .image-overlay p { font-size:0.8rem; color:rgba(255,255,255,0.7); line-height:1.5; }
+    .image-overlay strong { color:var(--gold); display:block; margin-bottom:0.3rem; font-size:0.85rem; }
+
+    /* Image loading state */
+    .image-frame.loading #dynamicImage { opacity: 0; }
+    .image-skeleton {
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, var(--warm) 25%, #e8e4dc 50%, var(--warm) 75%);
+      background-size:200% 100%;
+      animation: shimmer 1.5s infinite;
+      display:none;
+    }
+    .image-frame.loading .image-skeleton { display:block; }
+    @keyframes shimmer { 0%{background-position:200%0} 100%{background-position:-200%0} }
+
+    /* Image controls */
+    .image-controls { margin-top:1rem; }
+    .img-ctrl-label { font-size:0.72rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:0.5rem; }
+    .img-ctrl-note { font-size:0.78rem; color:var(--muted); margin-top:0.5rem; line-height:1.5; }
+    .img-ctrl-note code { background:var(--warm); padding:0.1rem 0.35rem; border-radius:2px; font-size:0.72rem; color:var(--navy); }
+
+    /* ── FORM PANEL ── */
+    .form-panel { min-width:0; }
+    .form-section-label {
+      display:flex; align-items:center; gap:0.5rem;
+      font-size:0.72rem; font-weight:600; letter-spacing:0.1em;
+      text-transform:uppercase; color:var(--gold); margin-bottom:1rem;
+    }
+    .form-section-label::before { content:''; width:20px; height:1px; background:var(--gold); }
+
+    .form-panel h2 { font-family:'Playfair Display',serif; font-size:1.85rem; font-weight:700; color:var(--navy); margin-bottom:0.75rem; }
+    .form-panel > p { font-size:0.9rem; color:var(--muted); line-height:1.75; margin-bottom:2.5rem; max-width:60ch; }
+
+    /* Form groups */
+    .form-group { margin-bottom:1.5rem; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+    label { display:block; font-size:0.78rem; font-weight:600; color:var(--navy); margin-bottom:0.4rem; letter-spacing:0.02em; }
+    label .req { color:var(--gold); margin-left:2px; }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    select, textarea {
+      width:100%; padding:0.7rem 0.875rem;
+      border:1px solid var(--border); border-radius:2px;
+      font-family:'Inter',sans-serif; font-size:0.875rem; color:var(--text);
+      background:var(--white);
+      transition:border-color 0.2s, box-shadow 0.2s;
+      outline:none; appearance:none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color:var(--gold);
+      box-shadow:0 0 0 3px rgba(201,168,76,0.15);
+    }
+    textarea { resize:vertical; min-height:100px; }
+    select {
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 0.875rem center;
+      padding-right:2.5rem;
+    }
+
+    /* Divider */
+    .form-divider { border:none; border-top:1px solid var(--border); margin:2.5rem 0; }
+
+    /* ── PDF UPLOAD ── */
+    .pdf-section h3 { font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:600; color:var(--navy); margin-bottom:0.5rem; }
+    .pdf-section > p { font-size:0.875rem; color:var(--muted); line-height:1.65; margin-bottom:1.25rem; }
+
+    .drop-zone {
+      border:2px dashed var(--border); border-radius:2px;
+      padding:2.5rem 1.5rem; text-align:center;
+      background:var(--warm); cursor:pointer;
+      transition:border-color 0.2s, background 0.2s;
+      position:relative;
+    }
+    .drop-zone.drag-over { border-color:var(--gold); background:rgba(201,168,76,0.06); }
+    .drop-zone input[type="file"] {
+      position:absolute; inset:0; opacity:0; cursor:pointer;
+      border:none; padding:0; width:100%; height:100%;
+    }
+    .drop-icon { margin:0 auto 1rem; width:44px; height:44px; }
+    .drop-icon svg { width:44px; height:44px; stroke:var(--gold); fill:none; stroke-width:1.5; }
+    .drop-zone h4 { font-size:0.9rem; font-weight:600; color:var(--navy); margin-bottom:0.35rem; }
+    .drop-zone p { font-size:0.78rem; color:var(--muted); pointer-events:none; }
+    .drop-zone span { color:var(--gold); font-weight:600; }
+
+    /* File preview */
+    #filePreview {
+      display:none; margin-top:1rem;
+      background:var(--white); border:1px solid var(--border);
+      border-radius:2px; padding:0.875rem 1rem;
+      display:none; align-items:center; gap:0.875rem;
+    }
+    #filePreview.visible { display:flex; }
+    .file-icon { width:36px; height:36px; background:var(--navy); border-radius:2px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .file-icon svg { width:18px; height:18px; stroke:var(--gold); fill:none; stroke-width:1.75; }
+    .file-info { flex:1; min-width:0; }
+    .file-name { font-size:0.85rem; font-weight:600; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .file-size { font-size:0.75rem; color:var(--muted); margin-top:0.15rem; }
+    .file-remove { background:none; border:none; cursor:pointer; color:var(--muted); padding:0.25rem; display:flex; align-items:center; justify-content:center; }
+    .file-remove:hover { color:var(--error); }
+    .file-remove svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
+
+    /* Progress bar */
+    #uploadProgress {
+      display:none; margin-top:0.75rem;
+    }
+    #uploadProgress.visible { display:block; }
+    .progress-label { display:flex; justify-content:space-between; font-size:0.75rem; color:var(--muted); margin-bottom:0.35rem; }
+    .progress-track { height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+    .progress-fill { height:100%; background:var(--gold); border-radius:2px; transition:width 0.3s ease; }
+
+    /* Status messages */
+    .status-msg {
+      padding:0.75rem 1rem; border-radius:2px; font-size:0.82rem;
+      margin-top:0.75rem; display:none;
+    }
+    .status-msg.visible { display:block; }
+    .status-msg.success { background:rgba(26,122,74,0.1); border:1px solid rgba(26,122,74,0.3); color:var(--success); }
+    .status-msg.error { background:rgba(192,57,43,0.08); border:1px solid rgba(192,57,43,0.25); color:var(--error); }
+    .status-msg.info { background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.3); color:#7A5C1A; }
+
+    /* ── SUBMIT ── */
+    .submit-row { display:flex; align-items:center; gap:1.25rem; margin-top:2rem; }
+    .btn-submit {
+      background:var(--gold); color:var(--navy);
+      padding:0.9rem 2rem; border-radius:2px; border:none;
+      font-family:'Inter',sans-serif; font-weight:600; font-size:0.9rem;
+      cursor:pointer; letter-spacing:0.02em;
+      transition:background 0.2s, transform 0.1s;
+      display:flex; align-items:center; gap:0.5rem;
+    }
+    .btn-submit:hover { background:var(--gold-lt); }
+    .btn-submit:active { transform:scale(0.98); }
+    .btn-submit:disabled { opacity:0.55; cursor:not-allowed; }
+    .btn-submit .spinner {
+      width:16px; height:16px; border:2px solid rgba(10,22,40,0.25);
+      border-top-color:var(--navy); border-radius:50%;
+      animation:spin 0.7s linear infinite; display:none;
+    }
+    .btn-submit.loading .spinner { display:block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .submit-note { font-size:0.78rem; color:var(--muted); line-height:1.55; }
+    .submit-note svg { vertical-align:middle; width:14px; height:14px; stroke:var(--muted); fill:none; margin-right:4px; }
+
+    #formStatus { margin-top:1.25rem; }
+
+    /* ── FOOTER ── */
+    footer { background:var(--navy); border-top:1px solid rgba(201,168,76,0.15); padding:3rem 8%; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+    .footer-logo { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--white); }
+    .footer-logo span { color:var(--gold); }
+    .footer-copy { font-size:0.78rem; color:rgba(255,255,255,0.35); }
+    .footer-links { display:flex; gap:1.5rem; }
+    .footer-links a { font-size:0.78rem; color:rgba(255,255,255,0.45); text-decoration:none; }
+    .footer-links a:hover { color:var(--gold); }
+
+    @media (max-width:960px) {
+      .assessment-wrap { grid-template-columns:1fr; }
+      .image-panel { position:static; margin-bottom:2.5rem; }
+      .image-frame { aspect-ratio:16/9; }
+      .form-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-logo">Meridian <span>Financial</span></div>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="assessment.html" class="active">Assessment</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+    <a href="#" class="nav-cta">Schedule a Call</a>
+  </nav>
+
+  <div class="page-header">
+    <p class="breadcrumb"><a href="index.html">Home</a> / Assessment</p>
+    <h1>Your Financial<br>Assessment</h1>
+    <p>Tell us where you are and share your documents. A dedicated advisor will review everything and reach out within one business day.</p>
+  </div>
+
+  <div class="assessment-wrap">
+
+    <!-- DYNAMIC IMAGE PANEL -->
+    <aside class="image-panel">
+      <div class="image-frame" id="imageFrame">
+        <div class="image-skeleton"></div>
+        <img id="dynamicImage"
+             src="./images4Website/Shaking hands.jpg"
+             alt="Advisor consultation image"
+             onload="this.closest('.image-frame').classList.remove('loading')" />
+        <div class="image-overlay">
+          <strong id="imageCaption">Working together toward your goals</strong>
+          <p id="imageSubcaption">Every assessment is reviewed personally by a CFP®-credentialed advisor before we respond.</p>
+        </div>
+      </div>
+
+      <div class="image-controls">
+        <p class="img-ctrl-label">Backend Image Control</p>
+        <p class="img-ctrl-note">
+          The image above is loaded dynamically. To update it from your backend, call
+          <code>window.setAdvisorImage(url, caption, subcaption)</code>
+          or <code>GET /api/assessment-image</code> and the page will update automatically on load.
+        </p>
+        <p class="img-ctrl-note" style="margin-top:0.5rem;">
+          The endpoint should return: <code>{ url, caption, subcaption }</code>
+        </p>
+      </div>
+    </aside>
+
+    <!-- FORM PANEL -->
+    <div class="form-panel">
+      <span class="form-section-label">Get Started</span>
+      <h2>Tell us about your situation</h2>
+      <p>All information is encrypted in transit and stored securely. We do not share your data with third parties or use it for marketing purposes.</p>
+
+      <form id="assessmentForm" novalidate>
+
+        <!-- Contact Info -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">First name <span class="req">*</span></label>
+            <input type="text" id="firstName" name="firstName" placeholder="Jane" required />
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last name <span class="req">*</span></label>
+            <input type="text" id="lastName" name="lastName" placeholder="Smith" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email address <span class="req">*</span></label>
+          <input type="email" id="email" name="email" placeholder="jane@example.com" required />
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone number</label>
+          <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" />
+        </div>
+
+        <hr class="form-divider" />
+
+        <!-- Financial Context -->
+        <div class="form-group">
+          <label for="primaryGoal">Primary financial goal <span class="req">*</span></label>
+          <select id="primaryGoal" name="primaryGoal" required>
+            <option value="" disabled selected>Select your main goal</option>
+            <option>Retirement planning</option>
+            <option>Debt elimination</option>
+            <option>Building an emergency fund</option>
+            <option>Saving for a home</option>
+            <option>Investment strategy review</option>
+            <option>Estate and legacy planning</option>
+            <option>College savings</option>
+            <option>General financial planning</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="householdIncome">Approximate household income</label>
+          <select id="householdIncome" name="householdIncome">
+            <option value="" disabled selected>Select a range</option>
+            <option>Under $50,000</option>
+            <option>$50,000 – $100,000</option>
+            <option>$100,000 – $150,000</option>
+            <option>$150,000 – $250,000</option>
+            <option>$250,000 – $500,000</option>
+            <option>Over $500,000</option>
+            <option>Prefer not to say</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="urgency">Timeline for this goal</label>
+          <select id="urgency" name="urgency">
+            <option value="" disabled selected>Select a timeline</option>
+            <option>Immediate — within the next 3 months</option>
+            <option>Short-term — within 1 year</option>
+            <option>Medium-term — 1 to 5 years</option>
+            <option>Long-term — 5 to 15 years</option>
+            <option>Very long-term — 15+ years</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="context">Anything else we should know?</label>
+          <textarea id="context" name="context" placeholder="Share any relevant context—specific concerns, previous advisor experiences, life changes, or questions you'd like addressed..."></textarea>
+        </div>
+
+        <hr class="form-divider" />
+
+        <!-- PDF UPLOAD -->
+        <div class="pdf-section">
+          <h3>Upload a Document</h3>
+          <p>Share a recent tax return, investment statement, existing plan document, or any file that gives us a clearer picture. PDF files only. Max 20 MB.</p>
+
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="pdfFile" name="pdfFile" accept=".pdf" />
+            <div class="drop-icon">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            </div>
+            <h4>Drag your PDF here</h4>
+            <p><span>Browse to select a file</span> or drop it here</p>
+          </div>
+
+          <div id="filePreview">
+            <div class="file-icon">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="file-info">
+              <div class="file-name" id="fileName">document.pdf</div>
+              <div class="file-size" id="fileSize">—</div>
+            </div>
+            <button type="button" class="file-remove" id="removeFile" aria-label="Remove file">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div id="uploadProgress">
+            <div class="progress-label">
+              <span>Uploading…</span>
+              <span id="progressPct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progressFill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="status-msg" id="uploadStatus"></div>
+        </div>
+
+        <hr class="form-divider" />
+
+        <!-- SUBMIT -->
+        <div class="submit-row">
+          <button type="submit" class="btn-submit" id="submitBtn">
+            <div class="spinner"></div>
+            Submit Assessment
+          </button>
+          <p class="submit-note">
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Your data is encrypted and never sold or shared.
+          </p>
+        </div>
+
+        <div class="status-msg" id="formStatus"></div>
+
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-logo">Meridian <span>Financial</span></div>
+    <p class="footer-copy">© 2026 Meridian Financial Group. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Disclosures</a>
+      <a href="#">ADV Form</a>
+    </div>
+  </footer>
+
+  <script>
+    /* ─────────────────────────────────────────────────
+       BACKEND CONFIG — update these endpoints
+    ───────────────────────────────────────────────── */
+    const CONFIG = {
+      imageEndpoint:  '/api/assessment-image',   // GET → { url, caption, subcaption }
+      submitEndpoint: '/api/assessment-submit',  // POST → FormData (fields + optional PDF)
+    };
+
+    /* ─────────────────────────────────────────────────
+       DYNAMIC IMAGE
+       Backend should respond: { url, caption, subcaption }
+    ───────────────────────────────────────────────── */
+    async function loadAdvisorImage() {
+      try {
+        const res = await fetch(CONFIG.imageEndpoint);
+        if (!res.ok) return;                         // silently keep default
+        const data = await res.json();
+        if (data.url) setAdvisorImage(data.url, data.caption, data.subcaption);
+      } catch (_) {
+        // Network error or dev environment — keep the default image
+      }
+    }
+
+    // Can also be called directly from the console or parent frame
+    window.setAdvisorImage = function(url, caption, subcaption) {
+      const frame = document.getElementById('imageFrame');
+      const img   = document.getElementById('dynamicImage');
+      frame.classList.add('loading');
+      img.src = url;
+      img.onload = () => frame.classList.remove('loading');
+      if (caption)    document.getElementById('imageCaption').textContent    = caption;
+      if (subcaption) document.getElementById('imageSubcaption').textContent = subcaption;
+    };
+
+    loadAdvisorImage();
+
+    /* ─────────────────────────────────────────────────
+       PDF UPLOAD — drag-and-drop + file input
+    ───────────────────────────────────────────────── */
+    const dropZone    = document.getElementById('dropZone');
+    const fileInput   = document.getElementById('pdfFile');
+    const filePreview = document.getElementById('filePreview');
+    const fileName    = document.getElementById('fileName');
+    const fileSize    = document.getElementById('fileSize');
+    const removeBtn   = document.getElementById('removeFile');
+    const uploadStatus = document.getElementById('uploadStatus');
+
+    let selectedFile = null;
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function showStatus(el, type, msg) {
+      el.className = `status-msg visible ${type}`;
+      el.textContent = msg;
+    }
+    function clearStatus(el) {
+      el.className = 'status-msg';
+      el.textContent = '';
+    }
+
+    function attachFile(file) {
+      clearStatus(uploadStatus);
+      if (!file) return;
+      if (file.type !== 'application/pdf') {
+        showStatus(uploadStatus, 'error', 'Only PDF files are accepted. Please select a .pdf file.');
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        showStatus(uploadStatus, 'error', 'This file exceeds the 20 MB limit. Please compress or split the document.');
+        return;
+      }
+      selectedFile = file;
+      fileName.textContent = file.name;
+      fileSize.textContent = formatBytes(file.size);
+      filePreview.classList.add('visible');
+      showStatus(uploadStatus, 'success', 'File selected and ready to submit with your assessment.');
+    }
+
+    fileInput.addEventListener('change', e => attachFile(e.target.files[0]));
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      attachFile(e.dataTransfer.files[0]);
+    });
+
+    removeBtn.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      filePreview.classList.remove('visible');
+      clearStatus(uploadStatus);
+    });
+
+    /* ─────────────────────────────────────────────────
+       FORM SUBMISSION
+    ───────────────────────────────────────────────── */
+    const form       = document.getElementById('assessmentForm');
+    const submitBtn  = document.getElementById('submitBtn');
+    const formStatus = document.getElementById('formStatus');
+    const progressEl = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressPct  = document.getElementById('progressPct');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearStatus(formStatus);
+
+      // Basic validation
+      const required = ['firstName', 'lastName', 'email', 'primaryGoal'];
+      let valid = true;
+      required.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el.value.trim()) {
+          el.style.borderColor = 'var(--error)';
+          valid = false;
+        } else {
+          el.style.borderColor = '';
+        }
+      });
+      if (!valid) {
+        showStatus(formStatus, 'error', 'Please fill in all required fields before submitting.');
+        return;
+      }
+
+      // Build FormData
+      const fd = new FormData(form);
+      if (selectedFile) fd.set('pdfFile', selectedFile, selectedFile.name);
+
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
+
+      // Show upload progress if a file is attached
+      if (selectedFile) {
+        progressEl.classList.add('visible');
+        progressFill.style.width = '0%';
+        progressPct.textContent  = '0%';
+      }
+
+      try {
+        // XHR for upload progress events
+        const result = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', CONFIG.submitEndpoint);
+
+          xhr.upload.addEventListener('progress', e => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 100);
+              progressFill.style.width = pct + '%';
+              progressPct.textContent  = pct + '%';
+            }
+          });
+
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try { resolve(JSON.parse(xhr.responseText)); }
+              catch { resolve({ ok: true }); }
+            } else {
+              reject(new Error(`Server responded with ${xhr.status}`));
+            }
+          });
+
+          xhr.addEventListener('error', () => reject(new Error('Network error. Please check your connection and try again.')));
+          xhr.send(fd);
+        });
+
+        // Success
+        progressEl.classList.remove('visible');
+        form.reset();
+        selectedFile = null;
+        filePreview.classList.remove('visible');
+        showStatus(formStatus, 'success',
+          result.message || 'Your assessment has been submitted. A Meridian advisor will contact you within one business day.');
+
+      } catch (err) {
+        progressEl.classList.remove('visible');
+        showStatus(formStatus, 'error', err.message || 'Something went wrong. Please try again or call us directly.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+      }
+    });
+
+    // Clear field error styling on input
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+      el.addEventListener('input', () => el.style.borderColor = '');
+    });
+  </script>
+
+</body>
+</html>

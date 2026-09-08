@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resources — Meridian Financial Group</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0A1628;
+      --slate:  #1E3A5F;
+      --gold:   #C9A84C;
+      --gold-lt:#E8D5A3;
+      --warm:   #F7F5F0;
+      --text:   #2C2C2C;
+      --muted:  #6B7280;
+      --white:  #FFFFFF;
+      --border: #E2DDD5;
+    }
+
+    body { font-family: 'Inter', sans-serif; color: var(--text); background: var(--white); }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; width: 100%; z-index: 100;
+      background: rgba(10,22,40,0.97);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 5%; height: 68px;
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+    }
+    .nav-logo { font-family:'Playfair Display',serif; font-size:1.25rem; font-weight:600; color:var(--white); }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { display:flex; gap:2.5rem; list-style:none; }
+    .nav-links a { color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.875rem; font-weight:500; letter-spacing:0.04em; transition:color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color:var(--gold); }
+    .nav-cta { background:var(--gold); color:var(--navy); padding:0.5rem 1.25rem; border-radius:2px; font-size:0.8rem; font-weight:600; text-decoration:none; letter-spacing:0.05em; }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      background: var(--navy);
+      padding: 140px 8% 80px;
+    }
+    .breadcrumb { font-size:0.78rem; color:rgba(255,255,255,0.4); margin-bottom:1.25rem; }
+    .breadcrumb a { color:var(--gold); text-decoration:none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .page-header h1 {
+      font-family:'Playfair Display',serif;
+      font-size: clamp(2.25rem,4vw,3.25rem);
+      font-weight:700; color:var(--white); line-height:1.15; margin-bottom:1rem;
+    }
+    .page-header p { font-size:1rem; color:rgba(255,255,255,0.55); max-width:55ch; line-height:1.75; }
+
+    /* ── ARTICLE LAYOUT ── */
+    .article-wrap {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 5%;
+      padding: 80px 8%;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+    .article-main { min-width: 0; }
+
+    /* ── CONTENT BLOCKS ── */
+    .content-block { margin-bottom: 4rem; padding-bottom: 4rem; border-bottom: 1px solid var(--border); }
+    .content-block:last-child { border-bottom: none; }
+
+    .block-tag {
+      display:inline-flex; align-items:center; gap:0.5rem;
+      font-size:0.72rem; font-weight:600; letter-spacing:0.1em;
+      text-transform:uppercase; color:var(--gold); margin-bottom:0.75rem;
+    }
+    .block-tag::before { content:''; width:20px; height:1px; background:var(--gold); }
+
+    .content-block h2 {
+      font-family:'Playfair Display',serif;
+      font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+      font-weight:700; color:var(--navy); margin-bottom:1.25rem; line-height:1.25;
+    }
+    .content-block h3 {
+      font-family:'Playfair Display',serif;
+      font-size:1.25rem; font-weight:600; color:var(--navy);
+      margin-bottom:0.75rem; margin-top:2rem;
+    }
+    .content-block p {
+      font-size:0.95rem; color:var(--muted); line-height:1.85;
+      max-width:70ch; margin-bottom:1.25rem;
+    }
+    .content-block ul {
+      padding-left: 0; list-style: none;
+      display: flex; flex-direction: column; gap: 0.6rem;
+      margin-bottom: 1.25rem;
+    }
+    .content-block ul li {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      font-size: 0.9rem; color: var(--muted); line-height: 1.6;
+    }
+    .content-block ul li::before {
+      content: ''; width:6px; height:6px; border-radius:50%;
+      background:var(--gold); flex-shrink:0; margin-top:0.5rem;
+    }
+
+    /* Pull quote */
+    .pull-quote {
+      border-left: 3px solid var(--gold);
+      padding: 1.25rem 1.5rem;
+      margin: 2rem 0;
+      background: var(--warm);
+      border-radius: 0 2px 2px 0;
+    }
+    .pull-quote p {
+      font-family:'Playfair Display',serif;
+      font-size:1.1rem; font-style:italic;
+      color:var(--navy); margin:0;
+    }
+
+    /* Callout box */
+    .callout {
+      background: var(--navy); padding:2rem; border-radius:2px;
+      margin: 2rem 0;
+    }
+    .callout h4 {
+      font-family:'Playfair Display',serif;
+      font-size:1rem; color:var(--gold); margin-bottom:0.5rem;
+    }
+    .callout p { color:rgba(255,255,255,0.65); font-size:0.875rem; line-height:1.7; margin:0; max-width:none; }
+
+    /* Two-column inset */
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin:2rem 0; }
+    .two-col-item h4 { font-size:0.9rem; font-weight:600; color:var(--navy); margin-bottom:0.5rem; }
+    .two-col-item p { font-size:0.875rem; color:var(--muted); line-height:1.7; margin:0; max-width:none; }
+
+    /* Number steps */
+    .steps { counter-reset: step; display:flex; flex-direction:column; gap:1.5rem; margin:2rem 0; }
+    .step { display:flex; gap:1.25rem; align-items:flex-start; }
+    .step-num {
+      counter-increment: step;
+      width:36px; height:36px; border-radius:50%;
+      background:var(--gold); color:var(--navy);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:0.85rem; flex-shrink:0;
+    }
+    .step-body h4 { font-size:0.9rem; font-weight:600; color:var(--navy); margin-bottom:0.35rem; }
+    .step-body p { font-size:0.875rem; color:var(--muted); line-height:1.65; margin:0; max-width:none; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { position: sticky; top: 88px; align-self: start; }
+    .sidebar-widget {
+      background: var(--warm); border-radius:2px;
+      padding: 1.75rem; margin-bottom: 1.5rem;
+    }
+    .sidebar-widget h3 {
+      font-family:'Playfair Display',serif;
+      font-size:1rem; color:var(--navy); margin-bottom:1rem;
+    }
+    .sidebar-nav { list-style:none; display:flex; flex-direction:column; gap:0.1rem; }
+    .sidebar-nav a {
+      display:block; padding:0.5rem 0.75rem;
+      font-size:0.82rem; color:var(--muted); text-decoration:none;
+      border-left: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .sidebar-nav a:hover { color:var(--navy); border-left-color:var(--gold); background:var(--white); padding-left:1rem; }
+    .sidebar-cta { background:var(--navy); border-radius:2px; padding:1.75rem; text-align:center; }
+    .sidebar-cta h3 { font-family:'Playfair Display',serif; font-size:1rem; color:var(--white); margin-bottom:0.75rem; }
+    .sidebar-cta p { font-size:0.8rem; color:rgba(255,255,255,0.5); line-height:1.6; margin-bottom:1.25rem; }
+    .btn-gold { background:var(--gold); color:var(--navy); padding:0.625rem 1.25rem; border-radius:2px; font-weight:600; font-size:0.8rem; text-decoration:none; display:inline-block; width:100%; text-align:center; }
+
+    /* ── FOOTER ── */
+    footer { background:var(--navy); border-top:1px solid rgba(201,168,76,0.15); padding:3rem 8%; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+    .footer-logo { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--white); }
+    .footer-logo span { color:var(--gold); }
+    .footer-copy { font-size:0.78rem; color:rgba(255,255,255,0.35); }
+    .footer-links { display:flex; gap:1.5rem; }
+    .footer-links a { font-size:0.78rem; color:rgba(255,255,255,0.45); text-decoration:none; }
+    .footer-links a:hover { color:var(--gold); }
+
+    @media (max-width:900px) {
+      .article-wrap { grid-template-columns:1fr; }
+      .sidebar { position:static; }
+      .two-col { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-logo">Meridian <span>Financial</span></div>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html" class="active">Resources</a></li>
+      <li><a href="assessment.html">Assessment</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+    <a href="#" class="nav-cta">Schedule a Call</a>
+  </nav>
+
+  <div class="page-header">
+    <p class="breadcrumb"><a href="index.html">Home</a> / Resources</p>
+    <h1>Financial Knowledge<br>for Every Stage</h1>
+    <p>Practical guidance, plain language. No jargon, no sales pitch—just the information you need to make confident financial decisions.</p>
+  </div>
+
+  <div class="article-wrap">
+
+    <!-- MAIN CONTENT -->
+    <main class="article-main">
+
+      <!-- BLOCK 1 -->
+      <div class="content-block" id="budgeting">
+        <span class="block-tag">Getting Started</span>
+        <h2>Building a Budget That Actually Works</h2>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+        <div class="pull-quote">
+          <p>"A budget isn't a restriction—it's a set of instructions you write for your own money before someone else decides where it goes."</p>
+        </div>
+        <h3>Common budgeting frameworks</h3>
+        <div class="two-col">
+          <div class="two-col-item">
+            <h4>The 50/30/20 Rule</h4>
+            <p>Allocate half your after-tax income to needs, 30% to wants, and the remaining fifth to savings and debt repayment. A solid foundation for most households.</p>
+          </div>
+          <div class="two-col-item">
+            <h4>Zero-Based Budgeting</h4>
+            <p>Every dollar of income is assigned a job before the month begins. More labor-intensive, but highly effective for those building new financial habits.</p>
+          </div>
+        </div>
+        <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+        <ul>
+          <li>Track all spending for 30 days before creating your first formal budget</li>
+          <li>Identify fixed versus variable expenses—the variable ones are where flexibility lives</li>
+          <li>Review and adjust monthly, not annually; life changes faster than a yearly review cycle</li>
+          <li>Automate savings transfers on payday so the decision is never left to willpower</li>
+        </ul>
+      </div>
+
+      <!-- BLOCK 2 -->
+      <div class="content-block" id="debt">
+        <span class="block-tag">Debt Management</span>
+        <h2>Understanding and Eliminating Debt</h2>
+        <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+        <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+        <div class="callout">
+          <h4>The true cost of minimum payments</h4>
+          <p>A $10,000 credit card balance at 22% APR, paid at minimum payment only, takes approximately 27 years to eliminate and costs over $19,000 in interest alone. Understanding the math is the first step to changing the outcome.</p>
+        </div>
+        <h3>A step-by-step payoff strategy</h3>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>List every debt</h4>
+              <p>Write down each obligation with its balance, interest rate, and minimum payment. Visibility is the beginning of control.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Choose your method</h4>
+              <p>The avalanche method (highest rate first) minimizes total interest. The snowball method (smallest balance first) builds momentum and motivation. Both work—pick the one you'll stick to.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Find the extra payment</h4>
+              <p>Even $75–$150 per month in additional payments can cut years off a debt timeline. Review your budget for room to redirect.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>Roll payments forward</h4>
+              <p>When one debt is paid off, redirect its payment to the next. This compounds your progress dramatically over time.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCK 3 -->
+      <div class="content-block" id="investing">
+        <span class="block-tag">Investing Basics</span>
+        <h2>Growing Wealth Without Gambling With It</h2>
+        <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.</p>
+        <p>Similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit.</p>
+        <ul>
+          <li>Diversification reduces the impact of any single investment going wrong</li>
+          <li>Time in the market consistently outperforms attempts to time the market</li>
+          <li>Low-cost index funds outperform the majority of actively managed funds over 15-year periods</li>
+          <li>Tax-advantaged accounts (401k, IRA, HSA) should be maximized before taxable investing</li>
+          <li>Risk tolerance is personal—your portfolio should let you sleep at night</li>
+        </ul>
+        <p>Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus.</p>
+      </div>
+
+      <!-- BLOCK 4 -->
+      <div class="content-block" id="retirement">
+        <span class="block-tag">Retirement Planning</span>
+        <h2>What You Need to Know Before You Stop Working</h2>
+        <p>Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur.</p>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</p>
+        <div class="two-col">
+          <div class="two-col-item">
+            <h4>How much is enough?</h4>
+            <p>The traditional guidance is 25× your expected annual spending, based on a 4% withdrawal rate. But individual circumstances vary substantially based on health, lifestyle, and supplemental income.</p>
+          </div>
+          <div class="two-col-item">
+            <h4>When to start claiming Social Security</h4>
+            <p>Delaying from age 62 to 70 increases your benefit by roughly 76%. For those in good health, the breakeven math often favors waiting.</p>
+          </div>
+        </div>
+        <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione sequi nesciunt. Ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+      </div>
+
+      <!-- BLOCK 5 -->
+      <div class="content-block" id="protection">
+        <span class="block-tag">Risk & Protection</span>
+        <h2>Insurance, Emergency Funds, and Peace of Mind</h2>
+        <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+        <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt neque porro quisquam.</p>
+        <div class="callout">
+          <h4>Your emergency fund target</h4>
+          <p>Three to six months of essential living expenses, held in a high-yield savings account. This is not an investment—it is the foundation that keeps everything else from collapsing under an unexpected event.</p>
+        </div>
+        <p>Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur. Quis autem vel eum iure reprehenderit qui in ea voluptate.</p>
+        <ul>
+          <li>Term life insurance is typically sufficient for most families; whole-life policies require careful scrutiny</li>
+          <li>Disability insurance protects your most valuable asset: your ability to earn income</li>
+          <li>Umbrella liability coverage is often underutilized and dramatically underpriced for the protection it provides</li>
+          <li>Review all coverage annually—needs change as your assets and family situation evolve</li>
+        </ul>
+      </div>
+
+    </main>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-widget">
+        <h3>Jump to Section</h3>
+        <ul class="sidebar-nav">
+          <li><a href="#budgeting">Building a Budget</a></li>
+          <li><a href="#debt">Understanding Debt</a></li>
+          <li><a href="#investing">Investing Basics</a></li>
+          <li><a href="#retirement">Retirement Planning</a></li>
+          <li><a href="#protection">Risk & Protection</a></li>
+        </ul>
+      </div>
+      <div class="sidebar-cta">
+        <h3>Ready for a personal review?</h3>
+        <p>Schedule a complimentary 45-minute session with one of our advisors. No commitment, no sales pitch.</p>
+        <a href="#" class="btn-gold">Book Free Session</a>
+      </div>
+      <div class="sidebar-widget" style="margin-top:1.5rem;">
+        <h3>Download Resources</h3>
+        <ul class="sidebar-nav">
+          <li><a href="#">Budget Worksheet (PDF)</a></li>
+          <li><a href="#">Debt Payoff Calculator</a></li>
+          <li><a href="#">Retirement Readiness Guide</a></li>
+          <li><a href="#">Insurance Checklist</a></li>
+        </ul>
+      </div>
+    </aside>
+
+  </div>
+
+  <footer>
+    <div class="footer-logo">Meridian <span>Financial</span></div>
+    <p class="footer-copy">© 2026 Meridian Financial Group. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Disclosures</a>
+      <a href="#">ADV Form</a>
+    </div>
+  </footer>
+
+</body>
+</html>

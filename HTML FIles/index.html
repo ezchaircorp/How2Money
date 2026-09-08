@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meridian Financial Group</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* GReen #c0e553 Gold C9A84C   White #takeAWildGuess   Wine:#6f2446*/
+    :root {
+      --navy:   #0A1628;
+      --slate:  #1E3A5F;
+      --gold:   #c0e553;
+      --gold-lt:#E8D5A3;
+      --warm:   #F7F5F0;
+      --text:   #2C2C2C;
+      --muted:  #6B7280;
+      --white:  #FFFFFF;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; color: var(--text); background: var(--white); }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; width: 100%; z-index: 100;
+      background: rgba(10,22,40,0.97);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 5%;
+      height: 68px;
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+    }
+    .nav-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem; font-weight: 600;
+      color: var(--white); letter-spacing: 0.02em;
+    }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+    .nav-links a {
+      color: rgba(255,255,255,0.75);
+      text-decoration: none; font-size: 0.875rem;
+      font-weight: 500; letter-spacing: 0.04em;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--gold); }
+    .nav-cta {
+      background: var(--gold); color: var(--navy);
+      padding: 0.5rem 1.25rem; border-radius: 2px;
+      font-size: 0.8rem; font-weight: 600; text-decoration: none;
+      letter-spacing: 0.05em; transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--gold-lt); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      background: var(--navy);
+      display: grid; grid-template-columns: 1fr 1fr;
+      position: relative; overflow: hidden;
+    }
+    .hero-left {
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 120px 6% 80px 8%;
+      position: relative; z-index: 2;
+    }
+    .hero-eyebrow {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .hero-eyebrow-line { width: 32px; height: 1px; background: var(--gold); }
+    .hero-eyebrow-text {
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em;
+      color: var(--gold); text-transform: uppercase;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.75rem, 5vw, 4rem);
+      font-weight: 700; color: var(--white);
+      line-height: 1.12; margin-bottom: 1.5rem;
+    }
+    .hero h1 em { font-style: italic; color: var(--gold); }
+    .hero-sub {
+      font-size: 1.05rem; color: rgba(255,255,255,0.6);
+      line-height: 1.7; max-width: 44ch; margin-bottom: 2.5rem;
+    }
+    .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--gold); color: var(--navy);
+      padding: 0.875rem 2rem; border-radius: 2px;
+      font-weight: 600; font-size: 0.9rem; text-decoration: none;
+      letter-spacing: 0.03em; transition: background 0.2s;
+      display: inline-block;
+    }
+    .btn-primary:hover { background: var(--gold-lt); }
+    .btn-secondary {
+      border: 1px solid rgba(201,168,76,0.5); color: var(--gold);
+      padding: 0.875rem 2rem; border-radius: 2px;
+      font-weight: 500; font-size: 0.9rem; text-decoration: none;
+      transition: border-color 0.2s, color 0.2s; display: inline-block;
+    }
+    .btn-secondary:hover { border-color: var(--gold); }
+
+    .hero-stats {
+      display: flex; gap: 2.5rem; margin-top: 3.5rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem; font-weight: 700; color: var(--white);
+    }
+    .stat-label { font-size: 0.75rem; color: rgba(255,255,255,0.45); margin-top: 0.2rem; }
+
+    .hero-right {
+      position: relative; overflow: hidden;
+    }
+    .hero-right::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(105deg, var(--navy) 0%, transparent 35%);
+      z-index: 1;
+    }
+    .hero-img {
+      width: 100%; height: 100%; object-fit: cover;
+      filter: brightness(0.65) saturate(0.8);
+    }
+    .hero-badge {
+      position: absolute; bottom: 3rem; right: 2rem; z-index: 2;
+      background: rgba(10,22,40,0.85); border: 1px solid rgba(201,168,76,0.3);
+      padding: 1rem 1.25rem; border-radius: 4px;
+      backdrop-filter: blur(8px); max-width: 220px;
+    }
+    .hero-badge p { font-size: 0.8rem; color: rgba(255,255,255,0.7); line-height: 1.5; }
+    .hero-badge strong { color: var(--gold); display: block; margin-bottom: 0.25rem; font-size: 0.85rem; }
+
+    /* ── SECTION BASE ── */
+    section { padding: 100px 8%; }
+    .section-tag {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: 1rem;
+    }
+    .section-tag::before { content:''; width:24px; height:1px; background:var(--gold); }
+    h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 3.5vw, 2.75rem);
+      font-weight: 700; line-height: 1.2;
+      color: var(--navy); margin-bottom: 1.25rem;
+    }
+
+    /* ── SERVICES ── */
+    .services { background: var(--warm); }
+    .services-header { max-width: 52ch; margin-bottom: 3.5rem; }
+    .services-header p { color: var(--muted); line-height: 1.75; font-size: 1rem; }
+    .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5px; background: #D5D0C8; }
+    .service-card {
+      background: var(--white); padding: 2.5rem;
+      transition: box-shadow 0.25s;
+    }
+    .service-card:hover { box-shadow: 0 8px 32px rgba(10,22,40,0.1); z-index: 1; position: relative; }
+    .service-icon {
+      width: 44px; height: 44px;
+      background: var(--navy); border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .service-icon svg { width: 20px; height: 20px; stroke: var(--gold); fill: none; stroke-width: 1.75; }
+    .service-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem; font-weight: 600;
+      color: var(--navy); margin-bottom: 0.75rem;
+    }
+    .service-card p { font-size: 0.9rem; color: var(--muted); line-height: 1.7; }
+
+    /* ── ABOUT ── */
+    .about { background: var(--white); }
+    .about-inner {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6%;
+      align-items: center;
+    }
+    .about-img-wrap { position: relative; }
+    .about-img {
+      width: 100%; aspect-ratio: 4/5; object-fit: cover;
+      display: block; border-radius: 2px;
+    }
+    .about-accent {
+      position: absolute; bottom: -1.5rem; right: -1.5rem;
+      width: 55%; background: var(--navy); padding: 2rem;
+      border-radius: 2px;
+    }
+    .about-accent p {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.05rem; color: var(--white);
+      line-height: 1.55; font-style: italic;
+    }
+    .about-accent cite {
+      display: block; margin-top: 0.75rem;
+      font-size: 0.75rem; color: var(--gold);
+      font-style: normal; letter-spacing: 0.05em;
+    }
+    .about-content { padding-left: 2%; }
+    .about-content h2 { margin-bottom: 1.5rem; }
+    .about-content p { color: var(--muted); line-height: 1.8; font-size: 0.95rem; margin-bottom: 1.25rem; }
+    .about-pillars { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; }
+    .pillar { display: flex; align-items: flex-start; gap: 0.75rem; }
+    .pillar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); margin-top: 0.45rem; flex-shrink: 0; }
+    .pillar p { font-size: 0.875rem; color: var(--text); font-weight: 500; }
+
+    /* ── MISSION ── */
+    .mission {
+      background: var(--navy);
+      text-align: center;
+    }
+    .mission h2 { color: var(--white); max-width: 18ch; margin: 0 auto 1.5rem; }
+    .mission-statement {
+      font-size: 1.15rem; color: rgba(255,255,255,0.6);
+      line-height: 1.8; max-width: 60ch;
+      margin: 0 auto 2.5rem;
+    }
+    .mission-rule { width: 48px; height: 2px; background: var(--gold); margin: 0 auto 2.5rem; }
+
+    /* ── TEAM PHOTO STRIP ── */
+    .team-strip {
+      background: var(--warm);
+      padding: 80px 8%;
+    }
+    .team-strip-inner {
+      display: grid; grid-template-columns: 1fr 1.4fr; gap: 5%;
+      align-items: center;
+    }
+    .team-strip h2 { margin-bottom: 1rem; }
+    .team-strip p { color: var(--muted); line-height: 1.75; font-size: 0.95rem; margin-bottom: 1.5rem; }
+    .team-img-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .team-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 2px; }
+    .team-img.tall { aspect-ratio: 2/3; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--navy);
+      border-top: 1px solid rgba(201,168,76,0.15);
+      padding: 3rem 8%;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .footer-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.15rem; color: var(--white);
+    }
+    .footer-logo span { color: var(--gold); }
+    .footer-copy { font-size: 0.78rem; color: rgba(255,255,255,0.35); }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a { font-size: 0.78rem; color: rgba(255,255,255,0.45); text-decoration: none; }
+    .footer-links a:hover { color: var(--gold); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-left > * { animation: fadeUp 0.7s ease both; }
+    .hero-left > *:nth-child(1) { animation-delay: 0.05s; }
+    .hero-left > *:nth-child(2) { animation-delay: 0.15s; }
+    .hero-left > *:nth-child(3) { animation-delay: 0.25s; }
+    .hero-left > *:nth-child(4) { animation-delay: 0.35s; }
+    .hero-left > *:nth-child(5) { animation-delay: 0.5s; }
+
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-right { display: none; }
+      .services-grid { grid-template-columns: 1fr; }
+      .about-inner { grid-template-columns: 1fr; }
+      .about-img-wrap { margin-bottom: 3rem; }
+      .about-accent { display: none; }
+      .team-strip-inner { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">Meridian <span>Financial</span></div>
+    <ul class="nav-links">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="assessment.html">Assessment</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+    <a href="#" class="nav-cta">Schedule a Call</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-eyebrow">
+        <span class="hero-eyebrow-line"></span>
+        <span class="hero-eyebrow-text">Trusted Financial Guidance</span>
+      </div>
+      <h1>Your wealth,<br><em>purposefully</em><br>managed.</h1>
+      <p class="hero-sub">Meridian Financial Group helps individuals and families build lasting financial security through clarity, strategy, and honest advice—not products.</p>
+      <div class="hero-actions">
+        <a href="assessment.html" class="btn-primary">Get Your Assessment</a>
+        <a href="resources.html" class="btn-secondary">Explore Resources</a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="stat-num">$2.4B</div>
+          <div class="stat-label">Assets under guidance</div>
+        </div>
+        <div>
+          <div class="stat-num">18 yrs</div>
+          <div class="stat-label">In practice</div>
+        </div>
+        <div>
+          <div class="stat-num">3,200+</div>
+          <div class="stat-label">Families served</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <img class="hero-img"
+           src="./images4Website/wayattttttttttttttThinker.jpg"
+           alt="Financial advisor at work" />
+      <div class="hero-badge">
+        <strong>Fiduciary Standard</strong>
+        <p>We are legally and ethically bound to act in your best interest—always.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="services">
+    <div class="services-header">
+      <span class="section-tag">What We Offer</span>
+      <h2>Guidance that grows with you</h2>
+      <p>From first-time budgeters to multi-generational estate planning, our services are built around where you are and where you want to go.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <h3>Wealth Planning</h3>
+        <p>Comprehensive financial plans that balance growth, tax efficiency, and life milestones—built to adapt as your circumstances change.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>Retirement Strategy</h3>
+        <p>Retirement that lasts as long as you do. We model multiple scenarios so you can retire with confidence, not guesswork.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <h3>Estate & Legacy</h3>
+        <p>Thoughtful estate structures that honor your wishes, protect your heirs, and minimize the tax burden on what you leave behind.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <h3>Debt Resolution</h3>
+        <p>Clear strategies for managing and eliminating debt—without judgment. We help you reclaim your financial footing step by step.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">
+          <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h3>Investment Review</h3>
+        <p>An independent look at your current portfolio. We identify risk, redundancy, and opportunity—no product sales, no commissions.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Family Financial Education</h3>
+        <p>We work with the whole household—including young adults—so that financial literacy becomes part of your family's culture.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="about">
+    <div class="about-inner">
+      <div class="about-img-wrap">
+        <img class="about-img"
+             src="./images4Website/jacobMouthOpenInClass.jpg"
+             alt="Team meeting" />
+        <div class="about-accent">
+          <p>"We started Meridian because we were tired of seeing families pay for advice that served the advisor, not them."</p>
+          <cite>— R. Holloway, Founding Partner</cite>
+        </div>
+      </div>
+      <div class="about-content">
+        <span class="section-tag">About Us</span>
+        <h2>Built on independence, driven by integrity</h2>
+        <p>Meridian Financial Group was founded in 2007 with a single conviction: that financial advice should be unconflicted. We are a fee-only, fiduciary firm—meaning we do not earn commissions and we are required by law to act solely in your interest.</p>
+        <p>Our advisors come from backgrounds in tax law, behavioral finance, and institutional asset management. What unites us is a belief that good financial planning is as much about knowing yourself as it is about knowing the markets.</p>
+        <div class="about-pillars">
+          <div class="pillar"><div class="pillar-dot"></div><p>Fee-only, no commissions</p></div>
+          <div class="pillar"><div class="pillar-dot"></div><p>Certified Financial Planners</p></div>
+          <div class="pillar"><div class="pillar-dot"></div><p>Fiduciary at all times</p></div>
+          <div class="pillar"><div class="pillar-dot"></div><p>Transparent fee structure</p></div>
+          <div class="pillar"><div class="pillar-dot"></div><p>Ongoing client education</p></div>
+          <div class="pillar"><div class="pillar-dot"></div><p>Nationally registered & audited</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION -->
+  <section class="mission">
+    <span class="section-tag" style="color:var(--gold-lt)">Our Mission</span>
+    <h2>To make sound financial advice accessible to every family</h2>
+    <div class="mission-rule"></div>
+    <p class="mission-statement">
+      We believe financial security is not a privilege reserved for the wealthy. Our mission is to lower the barrier to high-quality, conflict-free financial guidance—equipping every client with the knowledge, tools, and confidence to make decisions that reflect their values and secure their future.
+    </p>
+    <a href="assessment.html" class="btn-primary">Begin Your Journey</a>
+  </section>
+
+  <!-- TEAM STRIP -->
+  <section class="team-strip">
+    <div class="team-strip-inner">
+      <div>
+        <span class="section-tag">Our People</span>
+        <h2>Advisors who listen before they advise</h2>
+        <p>Our team of 14 credentialed advisors brings diverse expertise across tax strategy, estate law, behavioral finance, and generational wealth planning. Every client relationship is anchored by a lead advisor you'll know by name.</p>
+        <a href="#" class="btn-primary" style="margin-top:0.5rem; font-size:0.85rem; padding: 0.75rem 1.5rem;">Meet the Team</a>
+      </div>
+      <div class="team-img-group">
+        <img class="team-img" src="./images4Website/randomGuyBehindUsInClass.jpg" alt="Senior advisor" />
+        <img class="team-img tall" src="./images4Website/ShankInClassProfessional.jpg" alt="Financial advisor" />
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">Meridian <span>Financial</span></div>
+    <p class="footer-copy">© 2026 Meridian Financial Group. All rights reserved. Investment advice through registered representatives.</p>
+    <div class="footer-links">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Disclosures</a>
+      <a href="#">ADV Form</a>
+    </div>
+  </footer>
+
+</body>
+</html>
