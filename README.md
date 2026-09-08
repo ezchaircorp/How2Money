@@ -1,2 +1,2 @@
-# How2Money
+# How1Money
 Teach people how to money
