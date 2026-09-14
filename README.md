@@ -6,7 +6,8 @@
 |_| |_|\___/ \_/\_/   |_____|_|  |_|\___/|_| |_|\___|\__, |(_)
                                                        |___/
 ```
-[![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange?logo=rust)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange?logo=rust)](https://www.rust-lang.org/)  
+[![License: No clue lmao we gotta add one][shield-repo-license]
 
 How2Money is a finance website and app that is tailored towards students!
 
