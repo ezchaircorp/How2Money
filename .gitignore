@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Per-contributor agent files — each contributor keeps their own AGENTS.md
+AGENTS.md
