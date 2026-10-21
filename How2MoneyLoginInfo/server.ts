@@ -2,15 +2,15 @@
 //
 // Run with:  npx tsx server.ts   (needs a reachable Postgres)
 // Serves:    html_files/ at http://localhost:3000
-// API:       POST /api/signup   { name, email, password }
+// API:       POST /api/signup   { name, email, password, confirm? }
 //            POST /api/login    { email, password }
 //
-// The old readline CLI (main.ts) is untouched and still works on its own.
+// All login/signup logic lives in database/db_login.ts (bcrypt-hashed passwords).
 
 import express from 'express';
 import path from 'path';
 
-import { emailExists, createUser, findUserByEmailAndPassword } from './database/db_users';
+import { login, signup } from './database/db_login';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -20,56 +20,26 @@ const SITE_DIR = path.resolve(__dirname, '..', 'html_files');
 
 app.use(express.json());
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Validation helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Same loose email rule the CLI used, so the two agree on what's valid.
-function looksLikeEmail(value: string): boolean {
-    return (
-        value.includes('@gmail.com') ||
-        value.includes('.edu') ||
-        value.includes('@hotmail.com') ||
-        value.includes('@yahoo.com')
-    );
+function str(value: unknown): string {
+    return typeof value === 'string' ? value : '';
 }
-
-type SignupBody = { name?: unknown; email?: unknown; password?: unknown };
-type LoginBody = { email?: unknown; password?: unknown };
-
-function asString(value: unknown): string {
-    return typeof value === 'string' ? value.trim() : '';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// API
-// ─────────────────────────────────────────────────────────────────────────────
 
 app.post('/api/signup', async (req, res) => {
-    const body = req.body as SignupBody;
-    const name = asString(body.name);
-    const email = asString(body.email);
-    const password = typeof body.password === 'string' ? body.password : '';
-
-    if (!name || !email || !password) {
-        return res.status(400).json({ ok: false, error: 'Name, email, and password are all required.' });
-    }
-    if (!looksLikeEmail(email)) {
-        return res.status(400).json({ ok: false, error: 'Please enter a valid email address.' });
-    }
-    if (password.length < 8) {
-        return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters.' });
-    }
-
+    const body = req.body ?? {};
     try {
-        if (await emailExists(email)) {
-            return res.status(409).json({ ok: false, error: 'That email is already registered.' });
+        const result = await signup(
+            str(body.name),
+            str(body.email),
+            str(body.password),
+            typeof body.confirm === 'string' ? body.confirm : undefined
+        );
+        if (!result.ok) {
+            return res.status(result.status).json({ ok: false, error: result.error });
         }
-        const user = await createUser(name, email, password);
         return res.status(201).json({
             ok: true,
-            message: `Welcome, ${user.Username}! Your account has been created.`,
-            user: { name: user.Username, email: user.Useremail },
+            message: `Welcome, ${result.user.name}! Your account has been created.`,
+            user: result.user,
         });
     } catch (err) {
         console.error('signup failed:', err);
@@ -78,23 +48,16 @@ app.post('/api/signup', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
-    const body = req.body as LoginBody;
-    const email = asString(body.email);
-    const password = typeof body.password === 'string' ? body.password : '';
-
-    if (!email || !password) {
-        return res.status(400).json({ ok: false, error: 'Email and password are required.' });
-    }
-
+    const body = req.body ?? {};
     try {
-        const user = await findUserByEmailAndPassword(email, password);
-        if (!user) {
-            return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+        const result = await login(str(body.email), str(body.password));
+        if (!result.ok) {
+            return res.status(result.status).json({ ok: false, error: result.error });
         }
         return res.json({
             ok: true,
-            message: `Welcome back, ${user.Username}!`,
-            user: { name: user.Username, email: user.Useremail },
+            message: `Welcome back, ${result.user.name}!`,
+            user: result.user,
         });
     } catch (err) {
         console.error('login failed:', err);
@@ -102,13 +65,8 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Static site
-// ─────────────────────────────────────────────────────────────────────────────
-
 app.use(express.static(SITE_DIR));
 
-// A friendly root → the marketing home page.
 app.get('/', (_req, res) => {
     res.sendFile(path.join(SITE_DIR, 'index.html'));
 });

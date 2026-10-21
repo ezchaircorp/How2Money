@@ -1,4 +1,4 @@
-// need to add database connection and prolly make the database on psql
+npx// need to add database connection and prolly make the database on psql
 
 // shows all user's info
 
