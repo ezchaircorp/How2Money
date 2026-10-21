@@ -1,10 +1,10 @@
--- Creates the table the login/signup flow expects, matching the columns the
--- readline CLI already uses (Username, Password, Useremail).
+-- Creates the table the login/signup flow expects.
 --
 -- Run it once against the database named in connection_info.env:
 --   psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -f database/schema.sql
 --
--- Safe to re-run: it only creates the table if it's missing.
+-- Safe to re-run: it only creates things that are missing.
+-- Passwords are stored as bcrypt hashes (60 chars), never plain text.
 
 CREATE TABLE IF NOT EXISTS login_info (
     Username  TEXT NOT NULL,
@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS login_info (
     Useremail TEXT NOT NULL
 );
 
--- Signup rejects duplicate emails, so make that lookup fast and enforceable.
 CREATE UNIQUE INDEX IF NOT EXISTS login_info_useremail_key
     ON login_info (Useremail);
+
+CREATE UNIQUE INDEX IF NOT EXISTS login_info_username_key
+    ON login_info (Username);

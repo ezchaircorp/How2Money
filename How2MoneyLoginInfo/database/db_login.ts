@@ -1,61 +1,83 @@
+// Login + signup logic for the website. Passwords are hashed with bcrypt.
+// server.ts calls these; nothing in here reads from the terminal.
+
+import bcrypt from 'bcrypt';
 import { pool } from './db_con';
 
-import { rl } from '../utils/readline';
+const ALLOWED_DOMAINS = ['@gmail.com', '@hotmail.com', '@yahoo.com'];
+const SALT_ROUNDS = 10;
 
-export async function login() {
-    const user = await rl.question('Enter your username: ');
-    const pass = await rl.question('Enter your password: ');
+export type User = { name: string; email: string };
 
-    const log_bool = await pool.query('SELECT * FROM login_info WHERE Username = $1 AND Password = $2', [user, pass]);
+export type Result =
+    | { ok: true; user: User }
+    | { ok: false; status: number; error: string };
 
-    if (log_bool.rows.length > 0) {
-        console.log('User found! Login successful.');
-    } else {
-        console.log('Invalid username or password.');
-    }
-
+function isValidEmail(email: string): boolean {
+    // endsWith instead of includes, so "x@gmail.com.evil.com" is rejected
+    return ALLOWED_DOMAINS.some(d => email.endsWith(d)) || email.endsWith('.edu');
 }
 
-export async function signup(){
-    let email = " ";
-    while (true){
-        email = await rl.question('Enter your email: ');
-        const match = await pool.query("SELECT username FROM login_info WHERE useremail = $1", [email]);
-        if (match.rows.length > 0){
-            console.log("That email is already registered!");
-            continue;
-        }
-        if (email.includes("@gmail.com") || email.includes(".edu") || email.includes("@hotmail.com") || email.includes("@yahoo.com")){
-            break;
-        }
-        console.log("Please enter a valid email");
+export async function signup(
+    username: string,
+    email: string,
+    password: string,
+    confirm?: string
+): Promise<Result> {
+    username = username.trim();
+    email = email.trim().toLowerCase();
 
+    if (!username || !email || !password) {
+        return { ok: false, status: 400, error: 'Name, email, and password are all required.' };
+    }
+    if (!isValidEmail(email)) {
+        return { ok: false, status: 400, error: 'Please enter a valid email address.' };
+    }
+    if (password.length < 8) {
+        return { ok: false, status: 400, error: 'Password must be at least 8 characters.' };
+    }
+    // Only checked if the page sends a confirm field
+    if (confirm !== undefined && password !== confirm) {
+        return { ok: false, status: 400, error: "Passwords aren't the same." };
     }
 
-    let user = " ";
+    const emailTaken = await pool.query('SELECT 1 FROM login_info WHERE useremail = $1', [email]);
+    if (emailTaken.rows.length > 0) {
+        return { ok: false, status: 409, error: 'That email is already registered.' };
+    }
 
-    while (true){
-        user = await rl.question('Enter your username: ');
-        const match = await pool.query("SELECT username FROM login_info WHERE username = $1", [user]);
-        if (match.rows.length > 0){
-            console.log("That username already exists!");
-            continue;
-        }
-        break;
+    const userTaken = await pool.query('SELECT 1 FROM login_info WHERE username = $1', [username]);
+    if (userTaken.rows.length > 0) {
+        return { ok: false, status: 409, error: 'That username already exists.' };
     }
-    const pass = await rl.question('Enter your password: ');
-    const passcheck = await rl.question('Confirm your password: ');
 
-    if (pass === passcheck){
-        console.log('Passwords are the same');
-        await pool.query('INSERT INTO login_info (Username, Password, Useremail) VALUES ($1, $2, $3);', [user, pass, email]);
-    }
-    else{
-        console.log("Passwords aren't the same");
-    }
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    await pool.query(
+        'INSERT INTO login_info (username, password, useremail) VALUES ($1, $2, $3)',
+        [username, hash, email]
+    );
+
+    return { ok: true, user: { name: username, email } };
 }
 
-export async function showDB(){
-    const db = await pool.query('SELECT * FROM login_info;');
-    console.log(db.rows);
+export async function login(email: string, password: string): Promise<Result> {
+    email = email.trim().toLowerCase();
+
+    if (!email || !password) {
+        return { ok: false, status: 400, error: 'Email and password are required.' };
+    }
+
+    const result = await pool.query(
+        'SELECT username, password, useremail FROM login_info WHERE useremail = $1',
+        [email]
+    );
+    const row = result.rows[0] as { username: string; password: string; useremail: string } | undefined;
+
+    // Same message whether the email is missing or the password is wrong,
+    // so nobody can probe which emails are registered
+    if (!row || !(await bcrypt.compare(password, row.password))) {
+        return { ok: false, status: 401, error: 'Invalid email or password.' };
+    }
+
+    return { ok: true, user: { name: row.username, email: row.useremail } };
 }
