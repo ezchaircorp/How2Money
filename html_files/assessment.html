@@ -86,12 +86,6 @@
     .image-frame.loading .image-skeleton { display:block; }
     @keyframes shimmer { 0%{background-position:200%0} 100%{background-position:-200%0} }
 
-    /* Image controls */
-    .image-controls { margin-top:1rem; }
-    .img-ctrl-label { font-size:0.72rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:0.5rem; }
-    .img-ctrl-note { font-size:0.78rem; color:var(--muted); margin-top:0.5rem; line-height:1.5; }
-    .img-ctrl-note code { background:var(--warm); padding:0.1rem 0.35rem; border-radius:2px; font-size:0.72rem; color:var(--navy); }
-
     /* ── FORM PANEL ── */
     .form-panel { min-width:0; }
     .form-section-label {
@@ -135,53 +129,67 @@
     /* Divider */
     .form-divider { border:none; border-top:1px solid var(--border); margin:2.5rem 0; }
 
-    /* ── PDF UPLOAD ── */
-    .pdf-section h3 { font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:600; color:var(--navy); margin-bottom:0.5rem; }
-    .pdf-section > p { font-size:0.875rem; color:var(--muted); line-height:1.65; margin-bottom:1.25rem; }
+    /* ── EXPENSE ROWS ── */
+    .form-hint { font-size:0.8rem; color:var(--muted); line-height:1.6; margin-bottom:1.25rem; max-width:60ch; }
+    .expense-list { border-top:1px solid var(--border); }
+    .expense-item { border-bottom:1px solid var(--border); }
+    .expense-row {
+      display:grid; grid-template-columns:1fr 120px 105px;
+      align-items:start; gap:0.75rem;
+      padding:0.9rem 0;
+    }
+    .expense-label { min-width:0; }
+    .expense-name { display:block; font-size:0.85rem; font-weight:600; color:var(--navy); margin-bottom:0.15rem; }
+    .expense-desc { font-size:0.75rem; font-weight:400; color:var(--muted); line-height:1.5; }
+    .expense-item input[type="number"] {
+      width:100%; padding:0.6rem 0.875rem;
+      border:1px solid var(--border); border-radius:2px;
+      font-family:'Inter',sans-serif; font-size:0.875rem; color:var(--text);
+      background:var(--white);
+      transition:border-color 0.2s, box-shadow 0.2s;
+      outline:none; appearance:textfield;
+    }
+    .expense-item input[type="number"]::-webkit-outer-spin-button,
+    .expense-item input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+    .expense-item input[type="number"]:focus {
+      border-color:var(--gold);
+      box-shadow:0 0 0 3px rgba(201,168,76,0.15);
+    }
+    .expense-item select { padding:0.6rem 2.25rem 0.6rem 0.75rem; font-size:0.82rem; background-position:right 0.7rem center; }
 
-    .drop-zone {
-      border:2px dashed var(--border); border-radius:2px;
-      padding:2.5rem 1.5rem; text-align:center;
-      background:var(--warm); cursor:pointer;
-      transition:border-color 0.2s, background 0.2s;
-      position:relative;
+    /* Optional per-category breakdown — appears once the category has an amount */
+    .expense-breakdown { display:none; grid-column:1 / -1; margin:0 0 0.9rem; }
+    .expense-item.split-open .expense-breakdown { display:block; }
+    .breakdown-hint {
+      font-size:0.7rem; color:var(--muted); letter-spacing:0.06em;
+      text-transform:uppercase; margin-bottom:0.5rem;
     }
-    .drop-zone.drag-over { border-color:var(--gold); background:rgba(201,168,76,0.06); }
-    .drop-zone input[type="file"] {
-      position:absolute; inset:0; opacity:0; cursor:pointer;
-      border:none; padding:0; width:100%; height:100%;
+    .breakdown-grid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
+      gap:0.75rem;
+      background:var(--warm); border-radius:2px; padding:0.875rem;
     }
-    .drop-icon { margin:0 auto 1rem; width:44px; height:44px; }
-    .drop-icon svg { width:44px; height:44px; stroke:var(--gold); fill:none; stroke-width:1.5; }
-    .drop-zone h4 { font-size:0.9rem; font-weight:600; color:var(--navy); margin-bottom:0.35rem; }
-    .drop-zone p { font-size:0.78rem; color:var(--muted); pointer-events:none; }
-    .drop-zone span { color:var(--gold); font-weight:600; }
+    .breakdown-field label { display:block; font-size:0.75rem; font-weight:500; color:var(--navy); margin-bottom:0.3rem; }
+    .breakdown-field input[type="number"] { padding:0.5rem 0.7rem; font-size:0.8rem; background:var(--white); }
 
-    /* File preview */
-    #filePreview {
-      display:none; margin-top:1rem;
-      background:var(--white); border:1px solid var(--border);
-      border-radius:2px; padding:0.875rem 1rem;
-      display:none; align-items:center; gap:0.875rem;
+    /* Totals are always editable — type here or open the breakdown below */
+    .expense-total { font-weight:600; }
+    .total-cell { min-width:0; }
+    .expense-total[readonly] {
+      background:var(--warm); color:var(--muted);
+      cursor:not-allowed; font-weight:600;
     }
-    #filePreview.visible { display:flex; }
-    .file-icon { width:36px; height:36px; background:var(--navy); border-radius:2px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .file-icon svg { width:18px; height:18px; stroke:var(--gold); fill:none; stroke-width:1.75; }
-    .file-info { flex:1; min-width:0; }
-    .file-name { font-size:0.85rem; font-weight:600; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .file-size { font-size:0.75rem; color:var(--muted); margin-top:0.15rem; }
-    .file-remove { background:none; border:none; cursor:pointer; color:var(--muted); padding:0.25rem; display:flex; align-items:center; justify-content:center; }
-    .file-remove:hover { color:var(--error); }
-    .file-remove svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
+    .expense-total[readonly]:focus { border-color:var(--border); box-shadow:none; }
 
-    /* Progress bar */
-    #uploadProgress {
-      display:none; margin-top:0.75rem;
+    /* "Enter manually" — opt back out of the calculated total */
+    .link-reset {
+      display:none; background:none; border:none; padding:0;
+      margin-top:0.35rem; cursor:pointer;
+      font-family:'Inter',sans-serif; font-size:0.7rem; font-weight:600;
+      color:var(--gold); text-decoration:underline;
     }
-    #uploadProgress.visible { display:block; }
-    .progress-label { display:flex; justify-content:space-between; font-size:0.75rem; color:var(--muted); margin-bottom:0.35rem; }
-    .progress-track { height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
-    .progress-fill { height:100%; background:var(--gold); border-radius:2px; transition:width 0.3s ease; }
+    .expense-item.split-open .link-reset { display:inline-block; }
+    .link-reset:hover { color:var(--navy); }
 
     /* Status messages */
     .status-msg {
@@ -205,7 +213,9 @@
     }
     .btn-submit:hover { background:var(--gold-lt); }
     .btn-submit:active { transform:scale(0.98); }
-    .btn-submit:disabled { opacity:0.55; cursor:not-allowed; }
+    .btn-submit:disabled { background:var(--border); color:var(--muted); opacity:1; cursor:not-allowed; }
+    .btn-submit:disabled:hover { background:var(--border); }
+    .btn-submit:disabled:active { transform:none; }
     .btn-submit .spinner {
       width:16px; height:16px; border:2px solid rgba(10,22,40,0.25);
       border-top-color:var(--navy); border-radius:50%;
@@ -233,6 +243,11 @@
       .image-frame { aspect-ratio:16/9; }
       .form-row { grid-template-columns:1fr; }
     }
+
+    @media (max-width:520px) {
+      .expense-row { grid-template-columns:1fr 1fr; }
+      .expense-label { grid-column:1 / -1; }
+    }
   </style>
 </head>
 <body>
@@ -244,13 +259,13 @@
       <li><a href="assessment.html" class="active">Assessment</a></li>
       <li><a href="resources.html">Learn</a></li>
     </ul>
-    <a href="#" class="nav-cta">Sign up</a>
+    <a href="#" class="nav-cta">Log in</a>
   </nav>
 
   <div class="page-header">
     <p class="breadcrumb"><a href="index.html">Home</a> / Assessment</p>
     <h1>Your Financial<br>Assessment</h1>
-    <p>Tell us where you are and share your documents. A dedicated advisor will review everything and reach out within one business day.</p>
+    <p>Tell us where you are in a few minutes. A dedicated advisor will review everything and reach out within one business day.</p>
   </div>
 
   <div class="assessment-wrap">
@@ -268,24 +283,12 @@
           <p id="imageSubcaption">Every assessment is reviewed personally by a CFP®-credentialed advisor before we respond.</p>
         </div>
       </div>
-
-      <div class="image-controls">
-        <p class="img-ctrl-label">Backend Image Control</p>
-        <p class="img-ctrl-note">
-          The image above is loaded dynamically. To update it from your backend, call
-          <code>window.setAdvisorImage(url, caption, subcaption)</code>
-          or <code>GET /api/assessment-image</code> and the page will update automatically on load.
-        </p>
-        <p class="img-ctrl-note" style="margin-top:0.5rem;">
-          The endpoint should return: <code>{ url, caption, subcaption }</code>
-        </p>
-      </div>
     </aside>
 
     <!-- FORM PANEL -->
     <div class="form-panel">
       <span class="form-section-label">Get Started</span>
-      <h2>Tell us about your situation</h2>
+      <h2>Get a quick look before you sign up</h2>
       <p>All information is encrypted in transit and stored securely. We do not share your data with third parties or use it for marketing purposes.</p>
 
       <form id="assessmentForm" novalidate>
@@ -307,108 +310,321 @@
           <input type="email" id="email" name="email" placeholder="jane@example.com" required />
         </div>
 
-        <div class="form-group">
-          <label for="phone">Phone number</label>
-          <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" />
-        </div>
-
         <hr class="form-divider" />
 
         <!-- Financial Context -->
         <div class="form-group">
-          <label for="primaryGoal">Primary financial goal <span class="req">*</span></label>
-          <select id="primaryGoal" name="primaryGoal" required>
-            <option value="" disabled selected>Select your main goal</option>
-            <option>Retirement planning</option>
-            <option>Debt elimination</option>
-            <option>Building an emergency fund</option>
-            <option>Saving for a home</option>
-            <option>Investment strategy review</option>
-            <option>Estate and legacy planning</option>
-            <option>College savings</option>
-            <option>General financial planning</option>
-            <option>Other</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="householdIncome">Approximate household income</label>
+          <label for="householdIncome">Approximate income</label>
           <select id="householdIncome" name="householdIncome">
             <option value="" disabled selected>Select a range</option>
-            <option>Under $50,000</option>
-            <option>$50,000 – $100,000</option>
-            <option>$100,000 – $150,000</option>
-            <option>$150,000 – $250,000</option>
-            <option>$250,000 – $500,000</option>
-            <option>Over $500,000</option>
+            <option>Under $10,000</option>
+            <option>$10,000 – $20,000</option>
+            <option>$20,000 – $30,000</option>
+            <option>$30,000 – $40,000</option>
+            <option>$40,000 – $50,000</option>
+            <option>$50,000 – $75,000</option>
+            <option>$75,000 – $100,000</option>
+            <option>$100,000+</option>
             <option>Prefer not to say</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label for="urgency">Timeline for this goal</label>
-          <select id="urgency" name="urgency">
-            <option value="" disabled selected>Select a timeline</option>
-            <option>Immediate — within the next 3 months</option>
-            <option>Short-term — within 1 year</option>
-            <option>Medium-term — 1 to 5 years</option>
-            <option>Long-term — 5 to 15 years</option>
-            <option>Very long-term — 15+ years</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="context">Anything else we should know?</label>
-          <textarea id="context" name="context" placeholder="Share any relevant context—specific concerns, previous advisor experiences, life changes, or questions you'd like addressed..."></textarea>
-        </div>
-
         <hr class="form-divider" />
 
-        <!-- PDF UPLOAD -->
-        <div class="pdf-section">
-          <h3>Upload a Document</h3>
-          <p>Share a recent tax return, investment statement, existing plan document, or any file that gives us a clearer picture. PDF files only. Max 20 MB.</p>
+        <!-- Expenses -->
+        <div class="form-group">
+          <label>Monthly expenses</label>
+          <p class="form-hint">Rough numbers are fine. Put a total in each box, pick how often you pay it, and leave anything that does not apply to you blank. Some categories have an optional breakdown you can use if you want to be more precise.</p>
 
-          <div class="drop-zone" id="dropZone">
-            <input type="file" id="pdfFile" name="pdfFile" accept=".pdf" />
-            <div class="drop-icon">
-              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          <div class="expense-list">
+
+            <!-- Housing — optional breakdown -->
+            <div class="expense-item" data-expense="housing">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_housing">Housing</label>
+                  <span class="expense-desc">Rent or mortgage and the costs that come with the place you live.</span>
+                </div>
+                <div class="total-cell">
+                  <input type="number" id="expense_housing" name="expense_housing" min="0" step="0.01" placeholder="0" class="expense-total" data-expense-total="housing" />
+                  <button type="button" class="link-reset" data-expense-reset>Enter manually</button>
+                </div>
+                <select class="expense-freq" name="expense_housing_freq" aria-label="Housing frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+              <div class="expense-breakdown">
+                <p class="breakdown-hint">Break it down below &mdash; the total on the left adds up for you</p>
+                <div class="breakdown-grid">
+                  <div class="breakdown-field">
+                    <label for="expense_housing_rent">Rent / Mortgage</label>
+                    <input type="number" id="expense_housing_rent" name="expense_housing_rent" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_housing_taxes">Property Taxes &amp; Fees</label>
+                    <input type="number" id="expense_housing_taxes" name="expense_housing_taxes" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_housing_repairs">Repairs &amp; Maintenance</label>
+                    <input type="number" id="expense_housing_repairs" name="expense_housing_repairs" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_housing_utilities">Utilities</label>
+                    <input type="number" id="expense_housing_utilities" name="expense_housing_utilities" min="0" step="0.01" placeholder="0" />
+                  </div>
+                </div>
+              </div>
             </div>
-            <h4>Drag your PDF here</h4>
-            <p><span>Browse to select a file</span> or drop it here</p>
+
+            <!-- Transportation — optional breakdown -->
+            <div class="expense-item" data-expense="transportation">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_transportation">Transportation</label>
+                  <span class="expense-desc">Getting around: gas, transit, rideshare, parking, and vehicle upkeep.</span>
+                </div>
+                <div class="total-cell">
+                  <input type="number" id="expense_transportation" name="expense_transportation" min="0" step="0.01" placeholder="0" class="expense-total" data-expense-total="transportation" />
+                  <button type="button" class="link-reset" data-expense-reset>Enter manually</button>
+                </div>
+                <select class="expense-freq" name="expense_transportation_freq" aria-label="Transportation frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+              <div class="expense-breakdown">
+                <p class="breakdown-hint">Break it down below &mdash; the total on the left adds up for you</p>
+                <div class="breakdown-grid">
+                  <div class="breakdown-field">
+                    <label for="expense_transportation_gas">Gas &amp; Fuel</label>
+                    <input type="number" id="expense_transportation_gas" name="expense_transportation_gas" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_transportation_transit">Transit, Rideshare &amp; Parking</label>
+                    <input type="number" id="expense_transportation_transit" name="expense_transportation_transit" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_transportation_auto">Auto Repairs &amp; Upkeep</label>
+                    <input type="number" id="expense_transportation_auto" name="expense_transportation_auto" min="0" step="0.01" placeholder="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Food — optional breakdown -->
+            <div class="expense-item" data-expense="food">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_food">Food</label>
+                  <span class="expense-desc">Everything you eat and drink, from the grocery store to takeout.</span>
+                </div>
+                <div class="total-cell">
+                  <input type="number" id="expense_food" name="expense_food" min="0" step="0.01" placeholder="0" class="expense-total" data-expense-total="food" />
+                  <button type="button" class="link-reset" data-expense-reset>Enter manually</button>
+                </div>
+                <select class="expense-freq" name="expense_food_freq" aria-label="Food frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+              <div class="expense-breakdown">
+                <p class="breakdown-hint">Break it down below &mdash; the total on the left adds up for you</p>
+                <div class="breakdown-grid">
+                  <div class="breakdown-field">
+                    <label for="expense_food_groceries">Groceries</label>
+                    <input type="number" id="expense_food_groceries" name="expense_food_groceries" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_food_restaurants">Restaurants</label>
+                    <input type="number" id="expense_food_restaurants" name="expense_food_restaurants" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_food_fast_food">Fast Food</label>
+                    <input type="number" id="expense_food_fast_food" name="expense_food_fast_food" min="0" step="0.01" placeholder="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Travel -->
+            <div class="expense-item">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_travel">Travel</label>
+                  <span class="expense-desc">Flights, hotels, and trips away from home.</span>
+                </div>
+                <input type="number" id="expense_travel" name="expense_travel" min="0" step="0.01" placeholder="0" />
+                <select class="expense-freq" name="expense_travel_freq" aria-label="Travel frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Subscriptions & Entertainment — optional breakdown -->
+            <div class="expense-item" data-expense="subscriptions_entertainment">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_subscriptions_entertainment">Subscriptions &amp; Entertainment</label>
+                  <span class="expense-desc">Streaming, apps, memberships, games, events, and hobbies.</span>
+                </div>
+                <div class="total-cell">
+                  <input type="number" id="expense_subscriptions_entertainment" name="expense_subscriptions_entertainment" min="0" step="0.01" placeholder="0" class="expense-total" data-expense-total="subscriptions_entertainment" />
+                  <button type="button" class="link-reset" data-expense-reset>Enter manually</button>
+                </div>
+                <select class="expense-freq" name="expense_subscriptions_entertainment_freq" aria-label="Subscriptions and entertainment frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+              <div class="expense-breakdown">
+                <p class="breakdown-hint">Break it down below &mdash; the total on the left adds up for you</p>
+                <div class="breakdown-grid">
+                  <div class="breakdown-field">
+                    <label for="expense_subscriptions_entertainment_recurring">Recurring Subscriptions</label>
+                    <input type="number" id="expense_subscriptions_entertainment_recurring" name="expense_subscriptions_entertainment_recurring" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_subscriptions_entertainment_onetime">Items &amp; Events</label>
+                    <input type="number" id="expense_subscriptions_entertainment_onetime" name="expense_subscriptions_entertainment_onetime" min="0" step="0.01" placeholder="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Shopping -->
+            <div class="expense-item">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_shopping">Shopping</label>
+                  <span class="expense-desc">Clothing, electronics, and everyday retail purchases.</span>
+                </div>
+                <input type="number" id="expense_shopping" name="expense_shopping" min="0" step="0.01" placeholder="0" />
+                <select class="expense-freq" name="expense_shopping_freq" aria-label="Shopping frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Health & Self-Care -->
+            <div class="expense-item">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_health_self_care">Health &amp; Self-Care</label>
+                  <span class="expense-desc">Doctor visits, prescriptions, the gym, and personal care.</span>
+                </div>
+                <input type="number" id="expense_health_self_care" name="expense_health_self_care" min="0" step="0.01" placeholder="0" />
+                <select class="expense-freq" name="expense_health_self_care_freq" aria-label="Health and self-care frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Education -->
+            <div class="expense-item">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_education">Education</label>
+                  <span class="expense-desc">Tuition, course materials, and anything school-related.</span>
+                </div>
+                <input type="number" id="expense_education" name="expense_education" min="0" step="0.01" placeholder="0" />
+                <select class="expense-freq" name="expense_education_freq" aria-label="Education frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Work & Professional -->
+            <div class="expense-item">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_work_professional">Work &amp; Professional</label>
+                  <span class="expense-desc">Job-related costs, from tools and licenses to professional memberships.</span>
+                </div>
+                <input type="number" id="expense_work_professional" name="expense_work_professional" min="0" step="0.01" placeholder="0" />
+                <select class="expense-freq" name="expense_work_professional_freq" aria-label="Work and professional frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Family & Pets — optional breakdown -->
+            <div class="expense-item" data-expense="family_pets">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_family_pets">Family &amp; Pets</label>
+                  <span class="expense-desc">Childcare, kids' activities, and the costs of keeping a pet.</span>
+                </div>
+                <div class="total-cell">
+                  <input type="number" id="expense_family_pets" name="expense_family_pets" min="0" step="0.01" placeholder="0" class="expense-total" data-expense-total="family_pets" />
+                  <button type="button" class="link-reset" data-expense-reset>Enter manually</button>
+                </div>
+                <select class="expense-freq" name="expense_family_pets_freq" aria-label="Family and pets frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+              <div class="expense-breakdown">
+                <p class="breakdown-hint">Break it down below &mdash; the total on the left adds up for you</p>
+                <div class="breakdown-grid">
+                  <div class="breakdown-field">
+                    <label for="expense_family_childcare">Childcare</label>
+                    <input type="number" id="expense_family_childcare" name="expense_family_childcare" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_family_kids">Kids' Activities</label>
+                    <input type="number" id="expense_family_kids" name="expense_family_kids" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_family_support">Child Support</label>
+                    <input type="number" id="expense_family_support" name="expense_family_support" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_pets_food">Pet Food &amp; Supplies</label>
+                    <input type="number" id="expense_pets_food" name="expense_pets_food" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_pets_vet">Vet Care</label>
+                    <input type="number" id="expense_pets_vet" name="expense_pets_vet" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_pets_grooming">Grooming &amp; Boarding</label>
+                    <input type="number" id="expense_pets_grooming" name="expense_pets_grooming" min="0" step="0.01" placeholder="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Household -->
+            <div class="expense-item">
+              <div class="expense-row">
+                <div class="expense-label">
+                  <label class="expense-name" for="expense_household">Household</label>
+                  <span class="expense-desc">Furniture, appliances, cleaning supplies, and home improvement.</span>
+                </div>
+                <input type="number" id="expense_household" name="expense_household" min="0" step="0.01" placeholder="0" />
+                <select class="expense-freq" name="expense_household_freq" aria-label="Household frequency">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+            </div>
+
           </div>
-
-          <div id="filePreview">
-            <div class="file-icon">
-              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
-            <div class="file-info">
-              <div class="file-name" id="fileName">document.pdf</div>
-              <div class="file-size" id="fileSize">—</div>
-            </div>
-            <button type="button" class="file-remove" id="removeFile" aria-label="Remove file">
-              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-
-          <div id="uploadProgress">
-            <div class="progress-label">
-              <span>Uploading…</span>
-              <span id="progressPct">0%</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill" id="progressFill" style="width:0%"></div>
-            </div>
-          </div>
-
-          <div class="status-msg" id="uploadStatus"></div>
         </div>
-
         <hr class="form-divider" />
 
         <!-- SUBMIT -->
         <div class="submit-row">
-          <button type="submit" class="btn-submit" id="submitBtn">
+          <button type="submit" class="btn-submit" id="submitBtn" disabled aria-disabled="true">
             <div class="spinner"></div>
             Submit Assessment
           </button>
@@ -440,7 +656,7 @@
     ───────────────────────────────────────────────── */
     const CONFIG = {
       imageEndpoint:  '/api/assessment-image',   // GET → { url, caption, subcaption }
-      submitEndpoint: '/api/assessment-submit',  // POST → FormData (fields + optional PDF)
+      submitEndpoint: '/api/assessment-submit',  // POST → FormData (fields + expense amounts/frequencies)
     };
 
     /* ─────────────────────────────────────────────────
@@ -472,23 +688,11 @@
     loadAdvisorImage();
 
     /* ─────────────────────────────────────────────────
-       PDF UPLOAD — drag-and-drop + file input
+       FORM SUBMISSION
     ───────────────────────────────────────────────── */
-    const dropZone    = document.getElementById('dropZone');
-    const fileInput   = document.getElementById('pdfFile');
-    const filePreview = document.getElementById('filePreview');
-    const fileName    = document.getElementById('fileName');
-    const fileSize    = document.getElementById('fileSize');
-    const removeBtn   = document.getElementById('removeFile');
-    const uploadStatus = document.getElementById('uploadStatus');
-
-    let selectedFile = null;
-
-    function formatBytes(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-    }
+    const form       = document.getElementById('assessmentForm');
+    const submitBtn  = document.getElementById('submitBtn');
+    const formStatus = document.getElementById('formStatus');
 
     function showStatus(el, type, msg) {
       el.className = `status-msg visible ${type}`;
@@ -499,99 +703,27 @@
       el.textContent = '';
     }
 
-    function attachFile(file) {
-      clearStatus(uploadStatus);
-      if (!file) return;
-      if (file.type !== 'application/pdf') {
-        showStatus(uploadStatus, 'error', 'Only PDF files are accepted. Please select a .pdf file.');
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) {
-        showStatus(uploadStatus, 'error', 'This file exceeds the 20 MB limit. Please compress or split the document.');
-        return;
-      }
-      selectedFile = file;
-      fileName.textContent = file.name;
-      fileSize.textContent = formatBytes(file.size);
-      filePreview.classList.add('visible');
-      showStatus(uploadStatus, 'success', 'File selected and ready to submit with your assessment.');
-    }
-
-    fileInput.addEventListener('change', e => attachFile(e.target.files[0]));
-
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('drag-over');
-      attachFile(e.dataTransfer.files[0]);
-    });
-
-    removeBtn.addEventListener('click', () => {
-      selectedFile = null;
-      fileInput.value = '';
-      filePreview.classList.remove('visible');
-      clearStatus(uploadStatus);
-    });
-
-    /* ─────────────────────────────────────────────────
-       FORM SUBMISSION
-    ───────────────────────────────────────────────── */
-    const form       = document.getElementById('assessmentForm');
-    const submitBtn  = document.getElementById('submitBtn');
-    const formStatus = document.getElementById('formStatus');
-    const progressEl = document.getElementById('uploadProgress');
-    const progressFill = document.getElementById('progressFill');
-    const progressPct  = document.getElementById('progressPct');
-
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       clearStatus(formStatus);
 
-      // Basic validation
-      const required = ['firstName', 'lastName', 'email', 'primaryGoal'];
-      let valid = true;
-      required.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el.value.trim()) {
-          el.style.borderColor = 'var(--error)';
-          valid = false;
-        } else {
-          el.style.borderColor = '';
-        }
-      });
-      if (!valid) {
-        showStatus(formStatus, 'error', 'Please fill in all required fields before submitting.');
+      // The submit button is gated, but re-check for safety
+      if (!formReady()) {
+        updateGate();
+        showStatus(formStatus, 'error', 'Please fill in your name, email, income, and at least one expense before submitting.');
         return;
       }
 
       // Build FormData
       const fd = new FormData(form);
-      if (selectedFile) fd.set('pdfFile', selectedFile, selectedFile.name);
 
       submitBtn.disabled = true;
       submitBtn.classList.add('loading');
 
-      // Show upload progress if a file is attached
-      if (selectedFile) {
-        progressEl.classList.add('visible');
-        progressFill.style.width = '0%';
-        progressPct.textContent  = '0%';
-      }
-
       try {
-        // XHR for upload progress events
         const result = await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open('POST', CONFIG.submitEndpoint);
-
-          xhr.upload.addEventListener('progress', e => {
-            if (e.lengthComputable) {
-              const pct = Math.round((e.loaded / e.total) * 100);
-              progressFill.style.width = pct + '%';
-              progressPct.textContent  = pct + '%';
-            }
-          });
 
           xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
@@ -607,19 +739,16 @@
         });
 
         // Success
-        progressEl.classList.remove('visible');
         form.reset();
-        selectedFile = null;
-        filePreview.classList.remove('visible');
         showStatus(formStatus, 'success',
           result.message || 'Your assessment has been submitted. A Meridian advisor will contact you within one business day.');
 
       } catch (err) {
-        progressEl.classList.remove('visible');
         showStatus(formStatus, 'error', err.message || 'Something went wrong. Please try again or call us directly.');
       } finally {
-        submitBtn.disabled = false;
         submitBtn.classList.remove('loading');
+        // Re-evaluate rather than force-enable: after a reset the form is empty again
+        updateGate();
       }
     });
 
@@ -627,6 +756,85 @@
     form.querySelectorAll('input, select, textarea').forEach(el => {
       el.addEventListener('input', () => el.style.borderColor = '');
     });
+
+    /* ─────────────────────────────────────────────────
+       EXPENSE BREAKDOWNS + RUNNING TOTALS
+       Typing a total reveals that category's detail boxes.
+       Once a detail box is edited, the total becomes a
+       read-only running sum. "Enter manually" opts back out.
+    ───────────────────────────────────────────────── */
+    const totals = Array.from(form.querySelectorAll('input[data-expense-total]'));
+    const num    = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+
+    totals.forEach(total => {
+      const item = total.closest('.expense-item');
+      const breakdown = item.querySelector('.expense-breakdown');
+      const fields = Array.from(breakdown.querySelectorAll('input'));
+
+      const detailFilled = () => fields.some(f => f.value.trim() !== '');
+
+      const refresh = () => {
+        const locked = total.readOnly;
+        item.classList.toggle('split-open', locked || total.value.trim() !== '');
+        if (locked) {
+          total.value = fields.reduce((sum, f) => sum + num(f.value), 0).toFixed(2);
+        }
+      };
+
+      // Typing a bare total opens the breakdown for optional detail
+      total.addEventListener('input', () => {
+        if (!total.readOnly) refresh();
+      });
+
+      fields.forEach(f => {
+        f.addEventListener('input', () => {
+          // First edit of any detail box hands the total over to the running sum
+          if (detailFilled()) total.readOnly = true;
+          refresh();
+        });
+      });
+
+      // Opt back out: clear the details AND the calculated total so it can be typed again
+      item.querySelector('[data-expense-reset]').addEventListener('click', () => {
+        total.readOnly = false;
+        total.value = '';
+        fields.forEach(f => { f.value = ''; });
+        refresh();
+        // Clearing an expense may leave the form without any amount filled
+        form.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+
+      refresh();
+    });
+
+    /* ─────────────────────────────────────────────────
+       SUBMIT BUTTON GATING
+       Enabled only once name, email, income and at least
+       one expense box have content.
+    ───────────────────────────────────────────────── */
+    const gateIds = ['firstName', 'lastName', 'email', 'householdIncome'];
+    const allExpenseInputs = Array.from(form.querySelectorAll('input[name^="expense_"]'))
+      .filter(el => !el.name.endsWith('_freq'));
+
+    function formReady() {
+      const fieldsFilled = gateIds.every(id => {
+        const el = document.getElementById(id);
+        return el && el.value.trim() !== '';
+      });
+      // Any single expense box with a real amount satisfies the requirement
+      const anyExpense = allExpenseInputs.some(el => el.value.trim() !== '' && num(el.value) > 0);
+      return fieldsFilled && anyExpense;
+    }
+
+    function updateGate() {
+      const ready = formReady();
+      submitBtn.disabled = !ready;
+      submitBtn.setAttribute('aria-disabled', String(!ready));
+    }
+
+    form.addEventListener('input', updateGate);
+    form.addEventListener('change', updateGate);
+    updateGate();
   </script>
 
 </body>

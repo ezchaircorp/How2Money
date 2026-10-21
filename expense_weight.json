@@ -1,0 +1,23 @@
+[
+  {"expense": "Housing", "description": "Rent, mortgage, property-related costs", "val": 10, "cost_per_month": 1400, "estimated": false},
+  {"expense": "Utilities", "description": "Electricity, water, gas, internet, trash", "val": 10, "cost_per_month": 600, "estimated": false},
+  {"expense": "Gas & Fuel", "description": "Gas stations, EV charging, fuel", "val": 8, "cost_per_month": 200, "estimated": true},
+  {"expense": "Groceries", "description": "Supermarkets, household food, basic supplies", "val": 10, "cost_per_month": 500, "estimated": true},
+  {"expense": "Dining & Restaurants", "description": "Restaurants, takeout, delivery, cafés", "val": 4, "cost_per_month": 250, "estimated": true},
+  {"expense": "Transportation", "description": "Public transit, rideshare, parking, tolls", "val": 6, "cost_per_month": 80, "estimated": true},
+  {"expense": "Auto & Vehicle", "description": "Repairs, maintenance, tires, registration", "val": 8, "cost_per_month": 150, "estimated": true},
+  {"expense": "Travel", "description": "Flights, hotels, rental cars, vacation expenses", "val": 3, "cost_per_month": 200, "estimated": true},
+  {"expense": "Entertainment", "description": "Movies, concerts, events, streaming", "val": 2, "cost_per_month": 60, "estimated": true},
+  {"expense": "Shopping", "description": "General retail, clothing, electronics, miscellaneous purchases", "val": 5, "cost_per_month": 150, "estimated": true},
+  {"expense": "Games & Gaming", "description": "Video games, consoles, in-game purchases", "val": 1, "cost_per_month": 25, "estimated": true},
+  {"expense": "Healthcare", "description": "Doctors, dentists, prescriptions, medical expenses", "val": 10, "cost_per_month": 350, "estimated": true},
+  {"expense": "Fitness & Wellness", "description": "Gyms, fitness classes, wellness services", "val": 5, "cost_per_month": 50, "estimated": true},
+  {"expense": "Personal Care", "description": "Haircuts, beauty, cosmetics, grooming", "val": 4, "cost_per_month": 60, "estimated": true},
+  {"expense": "Subscriptions & Services", "description": "Software, memberships, apps, recurring services", "val": 3, "cost_per_month": 50, "estimated": true},
+  {"expense": "Education", "description": "Tuition, courses, books, educational materials", "val": 9, "cost_per_month": 150, "estimated": true},
+  {"expense": "Work & Professional", "description": "Business expenses, professional memberships", "val": 9, "cost_per_month": 100, "estimated": true},
+  {"expense": "Family", "description": "Childcare, kids' activities, family expenses", "val": 8, "cost_per_month": 400, "estimated": true},
+  {"expense": "Pets", "description": "Food, veterinary care, grooming, pet supplies", "val": 8, "cost_per_month": 100, "estimated": true},
+  {"expense": "Gifts & Donations", "description": "Gifts, charitable contributions, donations", "val": 1, "cost_per_month": 80, "estimated": true},
+  {"expense": "Household", "description": "Furniture, appliances, cleaning supplies, home improvement", "val": 4, "cost_per_month": 120, "estimated": true}
+]
