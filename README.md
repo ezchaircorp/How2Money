@@ -23,10 +23,14 @@
 
 $\color{#FFD700}{\textsf{How}}\color{#FFFFFF}{\textsf{2}}\color{#FFD700}{\textsf{Money}}$ is a finance website and app that is tailored towards students! 
 
-We handle your taxes and manage your spending!
+We handle manage your spending!
 
 
-*im not creative so add more*
+
+
+# Testing our product
+
+To test our product, clone our GitHub repo and in terminal, type (for Windows users) "start html_files/index.html" to open our website locally. From there you can access anything else on the website! 
 
 
 
