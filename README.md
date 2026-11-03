@@ -32,6 +32,8 @@ We handle manage your spending!
 
 To test our product, clone our GitHub repo and in terminal, type (for Windows users) "start html_files/index.html" to open our website locally. From there you can access anything else on the website! 
 
+"npx tsx server.ts" to run the server. 
+
 
 
 
