@@ -6,6 +6,7 @@
 // It reads and writes the shared prototype profile through the public
 // /api/prototype/* endpoints. The server keeps that data in the local
 // prototype_data_storage.xlsx workbook, so this page works without Postgres.
+// The default tab is the stats view, which renders its charts with plain SVG.
 // When personal profiles are wired up later, only the CONFIG URLs need to
 // change.
 
@@ -14,9 +15,11 @@
 ───────────────────────────────────────────────── */
 const CONFIG = {
   profileEndpoint:           '/api/prototype/profile',
+  statsEndpoint:             '/api/prototype/stats',
   transactionEndpoint:       '/api/prototype/transactions',
   removeTransactionEndpoint: '/api/prototype/transactions/remove',
   monthlySetupEndpoint:      '/api/prototype/monthly-setup',
+  bigPictureEndpoint:        '/api/prototype/big-picture',
 };
 
 /* ─────────────────────────────────────────────────
@@ -27,6 +30,10 @@ const state = {
   buckets: [],
   monthly: [],
   transactions: [],
+  bigPicture: { entries: [], totals: {} },
+  statsPeriod: 'month',
+  stats: null,
+  statsRequest: 0,
 };
 
 // Readable names for the optional breakdown fields in the assessment. These
@@ -63,6 +70,34 @@ const MONTHLY_MULTIPLIER = {
   yearly: 1 / 12,
   weekly: 52 / 12,
 };
+
+const BIG_PICTURE_FIELDS = [
+  {
+    category: 'income', label: 'Income',
+    inputId: 'bigPictureIncome', frequencyId: 'bigPictureIncomeFreq',
+    monthlyId: 'bigPictureIncomeMonthly',
+  },
+  {
+    category: 'debt_payment', label: 'Debt payments',
+    inputId: 'bigPictureDebt', frequencyId: 'bigPictureDebtFreq',
+    monthlyId: 'bigPictureDebtMonthly',
+  },
+  {
+    category: 'schooling', label: 'Schooling expenses',
+    inputId: 'bigPictureSchooling', frequencyId: 'bigPictureSchoolingFreq',
+    monthlyId: 'bigPictureSchoolingMonthly',
+  },
+  {
+    category: 'insurance', label: 'Insurance',
+    inputId: 'bigPictureInsurance', frequencyId: 'bigPictureInsuranceFreq',
+    monthlyId: 'bigPictureInsuranceMonthly',
+  },
+  {
+    category: 'savings', label: 'Savings goals',
+    inputId: 'bigPictureSavings', frequencyId: 'bigPictureSavingsFreq',
+    monthlyId: 'bigPictureSavingsMonthly',
+  },
+];
 
 // Used when the profile API is unavailable. It mirrors the 11 buckets in
 // database/expense_categories.ts so the forms still render and the page still
@@ -202,10 +237,343 @@ function categoryLabel(category, bucket) {
 }
 
 /* ─────────────────────────────────────────────────
+   STATS CHARTS
+   Plain SVG/HTML so the page still has no chart library or build step.
+───────────────────────────────────────────────── */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgNode(tag, attrs = {}) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+  return node;
+}
+
+function chartText(svg, x, y, text, className, anchor = 'middle') {
+  const node = svgNode('text', { x, y, class: className, 'text-anchor': anchor });
+  node.textContent = text;
+  svg.appendChild(node);
+  return node;
+}
+
+function compactMoney(value) {
+  const abs = Math.abs(value);
+  if (abs >= 1000) return `$${(value / 1000).toFixed(abs >= 10000 ? 0 : 1)}k`;
+  if (abs >= 100) return `$${Math.round(value)}`;
+  return money.format(value);
+}
+
+function niceCeil(value) {
+  if (!(value > 0)) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+  const normalized = value / magnitude;
+  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return step * magnitude;
+}
+
+function periodWord(period) {
+  return period === 'week' ? 'Weekly' : period === 'year' ? 'Yearly' : 'Monthly';
+}
+
+function chartEmpty(holder, message) {
+  holder.innerHTML = '';
+  holder.appendChild(el('p', 'chart-empty', message));
+}
+
+function renderSpendingChart(series) {
+  const holder = document.getElementById('spendingChart');
+  holder.innerHTML = '';
+
+  if (!Array.isArray(series) || series.length === 0) {
+    chartEmpty(holder, 'No spending data for this period yet.');
+    return;
+  }
+
+  const W = 720;
+  const H = 280;
+  const left = 58;
+  const right = 14;
+  const top = 16;
+  const bottom = 44;
+  const plotW = W - left - right;
+  const plotH = H - top - bottom;
+  const plotBottom = top + plotH;
+
+  const maxValue = Math.max(...series.map(point => Math.max(num(point.total), num(point.expected))), 1);
+  const yMax = niceCeil(maxValue * 1.08);
+  const yFor = value => plotBottom - (value / yMax) * plotH;
+  const xCenter = index => left + ((index + 0.5) / series.length) * plotW;
+
+  const svg = svgNode('svg', {
+    viewBox: `0 0 ${W} ${H}`,
+    role: 'img',
+    'aria-label': 'Bar chart of spending against the budget for each point in the selected period',
+  });
+
+  for (let step = 0; step <= 4; step += 1) {
+    const value = (yMax * step) / 4;
+    const y = yFor(value);
+    svg.appendChild(svgNode('line', { x1: left, y1: y, x2: W - right, y2: y, class: 'chart-grid-line' }));
+    chartText(svg, left - 8, y + 3, compactMoney(value), 'chart-axis-label', 'end');
+  }
+
+  const expectedPoints = series
+    .map((point, index) => `${xCenter(index)},${yFor(num(point.expected))}`)
+    .join(' ');
+  svg.appendChild(svgNode('polyline', { points: expectedPoints, class: 'chart-line' }));
+
+  const barWidth = Math.max(2, Math.min(34, (plotW / series.length) * 0.62));
+  const showValues = series.length <= 12;
+
+  series.forEach((point, index) => {
+    const total = num(point.total);
+    const expected = num(point.expected);
+    const kind = total <= 0 ? 'empty' : total > expected + 0.005 ? 'over' : 'under';
+    const y = yFor(total);
+    const height = Math.max(total > 0 ? 1 : 0, plotBottom - y);
+
+    const bar = svgNode('rect', {
+      x: xCenter(index) - barWidth / 2,
+      y: plotBottom - height,
+      width: barWidth,
+      height,
+      rx: 1,
+      class: `chart-bar ${kind}`,
+    });
+    const title = svgNode('title');
+    title.textContent = `${point.label}: ${money.format(total)} spent · ${money.format(expected)} budget`;
+    bar.appendChild(title);
+    svg.appendChild(bar);
+
+    if (showValues && total > 0) {
+      chartText(svg, xCenter(index), plotBottom - height - 5, compactMoney(total), 'chart-value');
+    }
+  });
+
+  const labelEvery = series.length > 16 ? Math.ceil(series.length / 8) : 1;
+  series.forEach((point, index) => {
+    if (index % labelEvery !== 0 && index !== series.length - 1) return;
+    chartText(svg, xCenter(index), H - 14, point.label, 'chart-label');
+  });
+
+  holder.appendChild(svg);
+}
+
+function renderRecurringChart(totals) {
+  const holder = document.getElementById('recurringChart');
+  const legend = document.getElementById('recurringLegend');
+  holder.innerHTML = '';
+  legend.innerHTML = '';
+
+  const actual = num(totals.actual);
+  const recurring = num(totals.recurring);
+  const oneTime = num(totals.oneTime);
+
+  if (actual <= 0) {
+    chartEmpty(holder, 'No spending in this period yet.');
+    return;
+  }
+
+  const share = Math.min(1, Math.max(0, recurring / actual));
+  const cx = 100;
+  const cy = 100;
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+
+  const svg = svgNode('svg', {
+    viewBox: '0 0 200 200',
+    class: 'donut',
+    role: 'img',
+    'aria-label': `Recurring spending is ${Math.round(share * 100)} percent of the total`,
+  });
+  svg.appendChild(svgNode('circle', { cx, cy, r: radius, class: 'donut-track' }));
+
+  if (recurring > 0) {
+    svg.appendChild(svgNode('circle', {
+      cx, cy, r: radius,
+      class: 'donut-recurring',
+      transform: `rotate(-90 ${cx} ${cy})`,
+      'stroke-dasharray': `${circumference * share} ${circumference}`,
+    }));
+  }
+
+  if (oneTime > 0) {
+    svg.appendChild(svgNode('circle', {
+      cx, cy, r: radius,
+      class: 'donut-onetime',
+      transform: `rotate(-90 ${cx} ${cy})`,
+      'stroke-dasharray': `${circumference * (1 - share)} ${circumference}`,
+      'stroke-dashoffset': `${-circumference * share}`,
+    }));
+  }
+
+  chartText(svg, cx, cy - 2, compactMoney(actual), 'donut-total');
+  chartText(svg, cx, cy + 18, 'total spent', 'donut-sub');
+  holder.appendChild(svg);
+
+  for (const [name, amount, className] of [
+    ['Recurring', recurring, 'recurring'],
+    ['One-time', oneTime, 'onetime'],
+  ]) {
+    const row = el('div', 'donut-legend-row');
+    const label = el('span', 'name');
+    label.appendChild(el('i', `dot ${className}`));
+    label.appendChild(document.createTextNode(name));
+    row.appendChild(label);
+    row.appendChild(el('span', '', `${money.format(amount)} · ${Math.round((amount / actual) * 100)}%`));
+    legend.appendChild(row);
+  }
+}
+
+function renderBudgetChart(categories) {
+  const holder = document.getElementById('budgetChart');
+  holder.innerHTML = '';
+
+  const rows = (Array.isArray(categories) ? categories : [])
+    .filter(category => num(category.actual) > 0 || num(category.expected) > 0);
+
+  if (rows.length === 0) {
+    chartEmpty(holder, 'Set a monthly budget or add a transaction to compare them here.');
+    return;
+  }
+
+  const maxValue = Math.max(...rows.map(category => Math.max(num(category.actual), num(category.expected))), 1);
+
+  for (const row of rows) {
+    const actual = num(row.actual);
+    const expected = num(row.expected);
+    const difference = num(row.difference);
+    const kind = Math.abs(difference) < 0.005 ? 'flat' : difference > 0 ? 'over' : 'under';
+
+    const wrap = el('div', 'budget-row');
+    const head = el('div', 'budget-head');
+    head.appendChild(el('span', 'budget-name', row.label || prettyKey(row.bucket)));
+    head.appendChild(el('span', `delta ${kind}`, signedMoney(difference)));
+    wrap.appendChild(head);
+
+    const track = el('div', 'budget-track');
+    const fill = el('div', `budget-fill ${kind}`);
+    fill.style.width = `${Math.min(100, (actual / maxValue) * 100)}%`;
+    track.appendChild(fill);
+
+    if (expected > 0) {
+      const marker = el('div', 'budget-marker');
+      marker.style.left = `${Math.min(100, (expected / maxValue) * 100)}%`;
+      marker.title = `Budget ${money.format(expected)}`;
+      track.appendChild(marker);
+    }
+
+    wrap.appendChild(track);
+
+    const meta = el('div', 'budget-meta');
+    meta.appendChild(el('span', '', `Spent ${money.format(actual)}`));
+    meta.appendChild(el('span', '', `Budget ${money.format(expected)}`));
+    wrap.appendChild(meta);
+
+    holder.appendChild(wrap);
+  }
+}
+
+function renderStatsSummary(totals) {
+  const holder = document.getElementById('statsSummary');
+  holder.innerHTML = '';
+
+  const actual = num(totals.actual);
+  const expected = num(totals.expected);
+  const difference = num(totals.difference);
+  const kind = Math.abs(difference) < 0.005 ? 'flat' : difference > 0 ? 'over' : 'under';
+  const count = Number(totals.transactionCount) || 0;
+
+  const cards = [
+    {
+      label: 'Total spent',
+      value: money.format(actual),
+      sub: `${count} transaction${count === 1 ? '' : 's'} this period`,
+      cls: '',
+    },
+    {
+      label: 'Budget',
+      value: money.format(expected),
+      sub: totals.budgetSource === 'big_picture'
+        ? 'From the Big Picture plan'
+        : expected > 0 ? 'From the monthly setup' : 'Set a budget in Big Picture',
+      cls: '',
+    },
+    {
+      label: kind === 'over' ? 'Over budget' : kind === 'under' ? 'Under budget' : 'On budget',
+      value: signedMoney(difference),
+      sub: 'Actual minus budget',
+      cls: kind,
+    },
+    {
+      label: 'Recurring',
+      value: `${Math.round(num(totals.recurringShare) * 100)}%`,
+      sub: `${money.format(num(totals.recurring))} recurring`,
+      cls: '',
+    },
+  ];
+
+  for (const card of cards) {
+    const node = el('div', `stat-card ${card.cls}`.trim());
+    node.appendChild(el('span', 'stat-label', card.label));
+    node.appendChild(el('span', 'stat-value', card.value));
+    node.appendChild(el('span', 'stat-sub', card.sub));
+    holder.appendChild(node);
+  }
+}
+
+function renderStats(data) {
+  const totals = data.totals || {};
+  const range = data.range || {};
+  document.getElementById('statsRange').textContent = range.label
+    ? `${range.label} · ${periodWord(data.period)} view`
+    : `${periodWord(data.period)} view`;
+
+  renderStatsSummary(totals);
+  renderSpendingChart(data.series);
+  renderRecurringChart(totals);
+  renderBudgetChart(data.categories);
+}
+
+async function loadStats() {
+  const status = document.getElementById('statsStatus');
+  const request = ++state.statsRequest;
+  clearStatus(status);
+
+  try {
+    const result = await api(`${CONFIG.statsEndpoint}?period=${encodeURIComponent(state.statsPeriod)}`);
+    if (request !== state.statsRequest) return;
+
+    if (!result.ok) {
+      showStatus(status, 'error', result.data.error || 'Could not load spending stats.');
+      return;
+    }
+
+    state.stats = result.data;
+    renderStats(result.data);
+  } catch (_) {
+    if (request !== state.statsRequest) return;
+    showStatus(status, 'error', 'Could not reach the server for spending stats. Is it running?');
+  }
+}
+
+function setStatsPeriod(period) {
+  state.statsPeriod = period === 'week' || period === 'year' ? period : 'month';
+  document.querySelectorAll('.period-btn').forEach(button => {
+    button.classList.toggle('active', button.dataset.period === state.statsPeriod);
+  });
+  loadStats();
+}
+
+/* ─────────────────────────────────────────────────
    RENDERING — PROFILE + TRANSACTIONS
 ───────────────────────────────────────────────── */
 function renderProfile() {
   const profile = state.profile || {};
+  const bigPicture = state.bigPicture || {};
+  const bigPictureTotals = bigPicture.totals || {};
+  const bigPictureBudget = bigPictureTotals.configured
+    ? money.format(num(bigPictureTotals.budget))
+    : 'Not set';
 
   document.getElementById('profileName').textContent = profile.display_name || 'Prototype profile';
   document.getElementById('profileEmail').textContent = 'Shared demo profile — no account needed.';
@@ -215,6 +583,7 @@ function renderProfile() {
 
   const rows = [
     ['Mode', 'Prototype (shared)'],
+    ['Big Picture budget', bigPictureBudget],
     ['Expected per month', money.format(num(profile.total_monthly))],
     ['Actual this month', money.format(num(profile.actual_month))],
     ['Transactions this month', String(Number(profile.transaction_count) || 0)],
@@ -252,7 +621,10 @@ function renderTransactions() {
     li.appendChild(head);
 
     const lines = el('div', 'history-lines transaction-meta');
-    lines.appendChild(el('span', 'tx-note', t.note || 'No note'));
+    const noteWrap = el('span', 'tx-note-wrap');
+    noteWrap.appendChild(el('span', 'tx-note', t.note || 'No note'));
+    if (t.recurring) noteWrap.appendChild(el('span', 'recurring-badge', 'Recurring'));
+    lines.appendChild(noteWrap);
     const remove = el('button', 'btn-remove', 'Remove');
     remove.type = 'button';
     remove.dataset.removeTransaction = t.id;
@@ -484,6 +856,110 @@ function updateMonthlyTotals() {
 }
 
 /* ─────────────────────────────────────────────────
+   RENDERING — BIG PICTURE
+ ───────────────────────────────────────────────── */
+function bigPictureEntry(category) {
+  const entries = Array.isArray(state.bigPicture?.entries) ? state.bigPicture.entries : [];
+  return entries.find(entry => entry.category === category) || null;
+}
+
+// Unsaved planner inputs survive a transaction add/remove, just like the
+// monthly setup drafts.
+function captureBigPictureDrafts() {
+  const drafts = new Map();
+  for (const field of BIG_PICTURE_FIELDS) {
+    const input = document.getElementById(field.inputId);
+    const frequency = document.getElementById(field.frequencyId);
+    if (!input || !frequency) continue;
+    drafts.set(field.category, { amount: input.value, frequency: frequency.value });
+  }
+  return drafts;
+}
+
+function renderBigPicture(drafts = null) {
+  for (const field of BIG_PICTURE_FIELDS) {
+    const input = document.getElementById(field.inputId);
+    const frequency = document.getElementById(field.frequencyId);
+    if (!input || !frequency) continue;
+
+    const entry = bigPictureEntry(field.category);
+    const draft = drafts ? drafts.get(field.category) : null;
+    const amount = draft ? num(draft.amount) : num(entry?.amount);
+    input.value = amount > 0 ? amount.toFixed(2) : '';
+    frequency.value = draft
+      ? draft.frequency
+      : (entry?.frequency === 'yearly' ? 'yearly' : 'monthly');
+  }
+
+  updateBigPictureSummary();
+}
+
+function bigPictureFormValues() {
+  const values = {};
+  for (const field of BIG_PICTURE_FIELDS) {
+    const input = document.getElementById(field.inputId);
+    const frequency = document.getElementById(field.frequencyId);
+    const amount = Math.max(0, num(input?.value));
+    const freq = frequency?.value === 'yearly' ? 'yearly' : 'monthly';
+    values[field.category] = {
+      amount,
+      frequency: freq,
+      monthly: amount * (MONTHLY_MULTIPLIER[freq] ?? 1),
+    };
+  }
+  return values;
+}
+
+function updateBigPictureSummary() {
+  const values = bigPictureFormValues();
+
+  for (const field of BIG_PICTURE_FIELDS) {
+    const monthly = document.getElementById(field.monthlyId);
+    if (monthly) monthly.textContent = `${money.format(values[field.category].monthly)} / mo`;
+  }
+
+  const income = values.income.monthly;
+  const recurring =
+    values.debt_payment.monthly + values.schooling.monthly + values.insurance.monthly;
+  const savings = values.savings.monthly;
+  const budget = income - recurring - savings;
+
+  document.getElementById('bigPictureIncomeValue').textContent = money.format(income);
+  document.getElementById('bigPictureRecurringValue').textContent = money.format(recurring);
+  document.getElementById('bigPictureSavingsValue').textContent = money.format(savings);
+  document.getElementById('bigPictureBudgetValue').textContent = money.format(budget);
+
+  const budgetCard = document.getElementById('bigPictureBudgetCard');
+  budgetCard.classList.toggle('over', budget < -0.005);
+
+  const formula = document.getElementById('bigPictureFormula');
+  const hint = document.getElementById('bigPictureHint');
+
+  if (income <= 0 && recurring <= 0 && savings <= 0) {
+    formula.className = 'big-picture-formula';
+    formula.textContent = 'Enter income to calculate the monthly budget.';
+    hint.textContent = 'No planner amounts yet';
+    return;
+  }
+
+  if (budget < -0.005) {
+    formula.className = 'big-picture-formula negative';
+    formula.textContent =
+      `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
+      `${money.format(savings)} savings = ${money.format(budget)} budget. ` +
+      'That is over income, so the Stats tab treats the budget as $0 until this is balanced.';
+    hint.textContent = 'Budget is over income';
+    return;
+  }
+
+  formula.className = 'big-picture-formula';
+  formula.textContent =
+    `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
+    `${money.format(savings)} savings = ${money.format(budget)} budget per month.`;
+  hint.textContent = 'This budget drives the Stats tab';
+}
+
+/* ─────────────────────────────────────────────────
    APPLYING A PAYLOAD
 ───────────────────────────────────────────────── */
 function fallbackPayload() {
@@ -499,21 +975,31 @@ function fallbackPayload() {
     },
     buckets: FALLBACK_BUCKETS,
     monthly: [],
+    big_picture: {
+      entries: [],
+      totals: {
+        income: 0, debt_payment: 0, schooling: 0, insurance: 0,
+        recurring: 0, savings: 0, budget: 0, configured: false,
+      },
+    },
     transactions: [],
   };
 }
 
 function applyProfile(data, options = {}) {
   const drafts = options.preserveMonthlyDrafts ? captureMonthlyDrafts() : null;
+  const bigPictureDrafts = options.preserveBigPictureDrafts ? captureBigPictureDrafts() : null;
 
   state.profile = data.profile || {};
   state.buckets = Array.isArray(data.buckets) && data.buckets.length ? data.buckets : FALLBACK_BUCKETS;
   state.monthly = normalizeMonthly(data.monthly, state.buckets, drafts);
+  state.bigPicture = data.big_picture || { entries: [], totals: {} };
   state.transactions = Array.isArray(data.transactions) ? data.transactions : [];
 
   renderProfile();
   renderTransactions();
   renderMonthly();
+  renderBigPicture(bigPictureDrafts);
 
   if (document.getElementById('transactionCategory').options.length === 0) {
     renderTransactionCategories();
@@ -528,21 +1014,26 @@ function applyProfile(data, options = {}) {
    TABS
 ───────────────────────────────────────────────── */
 function showPanel(name) {
-  const transaction = name === 'transaction';
-  const transactionTab = document.getElementById('transactionTab');
-  const monthlyTab = document.getElementById('monthlyTab');
+  for (const panel of ['stats', 'bigPicture', 'transaction', 'monthly']) {
+    const active = panel === name;
+    const section = document.getElementById(`${panel}Panel`);
+    const tab = document.getElementById(`${panel}Tab`);
+    if (section) section.hidden = !active;
+    if (tab) {
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', String(active));
+    }
+  }
 
-  document.getElementById('transactionPanel').hidden = !transaction;
-  document.getElementById('monthlyPanel').hidden = transaction;
-
-  transactionTab.classList.toggle('active', transaction);
-  monthlyTab.classList.toggle('active', !transaction);
-  transactionTab.setAttribute('aria-selected', String(transaction));
-  monthlyTab.setAttribute('aria-selected', String(!transaction));
+  if (name === 'stats') loadStats();
 }
 
 document.querySelectorAll('.option-tab').forEach(tab => {
   tab.addEventListener('click', () => showPanel(tab.dataset.panel));
+});
+
+document.querySelectorAll('.period-btn').forEach(button => {
+  button.addEventListener('click', () => setStatsPeriod(button.dataset.period));
 });
 
 /* ─────────────────────────────────────────────────
@@ -563,6 +1054,7 @@ document.getElementById('transactionForm').addEventListener('submit', async (eve
   const amount = num(document.getElementById('transactionAmount').value);
   const spentOn = document.getElementById('transactionDate').value || todayString();
   const note = document.getElementById('transactionNote').value.trim();
+  const recurring = document.getElementById('transactionRecurring').checked;
 
   if (!selected.category || !selected.bucket) {
     showStatus(status, 'error', 'Pick a category first.');
@@ -587,6 +1079,7 @@ document.getElementById('transactionForm').addEventListener('submit', async (eve
         amount,
         spent_on: spentOn,
         note,
+        recurring,
       }),
     });
 
@@ -595,12 +1088,14 @@ document.getElementById('transactionForm').addEventListener('submit', async (eve
       return;
     }
 
-    applyProfile(result.data, { preserveMonthlyDrafts: true });
+    applyProfile(result.data, { preserveMonthlyDrafts: true, preserveBigPictureDrafts: true });
     clearLoadWarning();
     document.getElementById('transactionAmount').value = '';
     document.getElementById('transactionNote').value = '';
+    document.getElementById('transactionRecurring').checked = false;
     updateTransactionHint();
     showStatus(status, 'success', `${money.format(amount)} added to ${selected.label}.`);
+    loadStats();
   } catch (_) {
     showStatus(status, 'error', 'Could not reach the server. Is it running?');
   } finally {
@@ -632,9 +1127,10 @@ document.getElementById('transactionsList').addEventListener('click', async (eve
       return;
     }
 
-    applyProfile(result.data, { preserveMonthlyDrafts: true });
+    applyProfile(result.data, { preserveMonthlyDrafts: true, preserveBigPictureDrafts: true });
     clearLoadWarning();
     showStatus(status, 'success', 'Transaction removed.');
+    loadStats();
   } catch (_) {
     showStatus(status, 'error', 'Could not reach the server. Is it running?');
   } finally {
@@ -689,9 +1185,10 @@ document.getElementById('saveMonthlyBtn').addEventListener('click', async () => 
       return;
     }
 
-    applyProfile(result.data);
+    applyProfile(result.data, { preserveBigPictureDrafts: true });
     clearLoadWarning();
     showStatus(status, 'success', 'Monthly setup saved.');
+    loadStats();
   } catch (_) {
     showStatus(status, 'error', 'Could not reach the server. Is it running?');
   } finally {
@@ -702,6 +1199,62 @@ document.getElementById('saveMonthlyBtn').addEventListener('click', async () => 
 /* ─────────────────────────────────────────────────
    START
 ───────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────
+   BIG PICTURE
+ ───────────────────────────────────────────────── */
+for (const eventName of ['input', 'change']) {
+  document.getElementById('bigPictureForm').addEventListener(eventName, (event) => {
+    const target = event.target;
+    if (target instanceof Element && target.matches('[data-big-category], [data-big-frequency]')) {
+      updateBigPictureSummary();
+    }
+  });
+}
+
+document.getElementById('bigPictureForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const status = document.getElementById('bigPictureStatus');
+  const button = document.getElementById('saveBigPictureBtn');
+  clearStatus(status);
+
+  const values = bigPictureFormValues();
+  const entries = [];
+  for (const field of BIG_PICTURE_FIELDS) {
+    const value = values[field.category];
+    if (!(value.amount > 0)) continue;
+    entries.push({
+      category: field.category,
+      amount: value.amount,
+      frequency: value.frequency,
+    });
+  }
+
+  button.disabled = true;
+
+  try {
+    const result = await api(CONFIG.bigPictureEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries }),
+    });
+
+    if (!result.ok) {
+      showStatus(status, 'error', result.data.error || 'Could not save the Big Picture.');
+      return;
+    }
+
+    applyProfile(result.data, { preserveMonthlyDrafts: true });
+    clearLoadWarning();
+    showStatus(status, 'success', 'Big Picture saved. The Stats tab now uses this budget.');
+    loadStats();
+  } catch (_) {
+    showStatus(status, 'error', 'Could not reach the server. Is it running?');
+  } finally {
+    button.disabled = false;
+  }
+});
+
 async function init() {
   const loading = document.getElementById('loadingState');
   const content = document.getElementById('dashContent');
@@ -725,6 +1278,8 @@ async function init() {
     loading.hidden = true;
     content.hidden = false;
   }
+
+  loadStats();
 }
 
 init();

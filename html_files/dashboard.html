@@ -44,8 +44,16 @@
         <div class="status-msg" id="loadStatus" role="status"></div>
 
         <div class="option-tabs" role="tablist" aria-label="Dashboard mode">
-          <button type="button" class="option-tab active" id="transactionTab" role="tab"
-                  aria-selected="true" aria-controls="transactionPanel" data-panel="transaction">
+          <button type="button" class="option-tab active" id="statsTab" role="tab"
+                  aria-selected="true" aria-controls="statsPanel" data-panel="stats">
+            Stats
+          </button>
+          <button type="button" class="option-tab" id="bigPictureTab" role="tab"
+                  aria-selected="false" aria-controls="bigPicturePanel" data-panel="bigPicture">
+            Big Picture
+          </button>
+          <button type="button" class="option-tab" id="transactionTab" role="tab"
+                  aria-selected="false" aria-controls="transactionPanel" data-panel="transaction">
             Add one transaction
           </button>
           <button type="button" class="option-tab" id="monthlyTab" role="tab"
@@ -54,8 +62,179 @@
           </button>
         </div>
 
+        <!-- STATS (default view) -->
+        <section class="card option-panel stats-panel" id="statsPanel" role="tabpanel" aria-labelledby="statsTab">
+          <div class="card-head stats-head">
+            <div>
+              <span class="eyebrow">Overview</span>
+              <h2>Spending habits</h2>
+            </div>
+            <div class="period-switch" role="group" aria-label="Stats period">
+              <button type="button" class="period-btn" data-period="week">Week</button>
+              <button type="button" class="period-btn active" data-period="month">Month</button>
+              <button type="button" class="period-btn" data-period="year">Year</button>
+            </div>
+          </div>
+          <p class="form-hint" id="statsRange">Loading the current period…</p>
+          <div class="status-msg" id="statsStatus" role="status"></div>
+          <div class="stats-summary" id="statsSummary"></div>
+
+          <div class="chart-block">
+            <div class="chart-head">
+              <h3>Total spending</h3>
+              <div class="chart-legend">
+                <span><i class="swatch under"></i> Under budget</span>
+                <span><i class="swatch over"></i> Over budget</span>
+                <span><i class="swatch budget"></i> Budget pace</span>
+              </div>
+            </div>
+            <div class="chart-holder" id="spendingChart"></div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="chart-block">
+              <h3>Recurring vs one-time</h3>
+              <div class="donut-holder" id="recurringChart"></div>
+              <div class="donut-legend" id="recurringLegend"></div>
+            </div>
+            <div class="chart-block">
+              <h3>Over / under budget</h3>
+              <p class="chart-note">Actual spending against the budget for this period.</p>
+              <div class="budget-list" id="budgetChart"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BIG PICTURE -->
+        <section class="card option-panel" id="bigPicturePanel" role="tabpanel" aria-labelledby="bigPictureTab" hidden>
+          <div class="card-head">
+            <div>
+              <span class="eyebrow">Big Picture</span>
+              <h2>Set the monthly budget</h2>
+            </div>
+            <p class="hint" id="bigPictureHint"></p>
+          </div>
+          <p class="form-hint">Start with the money coming in. Yearly amounts are divided by 12, then debt, schooling, insurance, and savings come out of income. The result is the budget used on the Stats tab.</p>
+
+          <form id="bigPictureForm" novalidate>
+            <div class="big-picture-list">
+              <div class="big-picture-row">
+                <label class="big-picture-label" for="bigPictureIncome">Income</label>
+                <div class="big-picture-input">
+                  <span class="money-prefix" aria-hidden="true">$</span>
+                  <input type="number" id="bigPictureIncome" data-big-category="income"
+                         min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                         aria-describedby="bigPictureIncomeMonthly" />
+                </div>
+                <select id="bigPictureIncomeFreq" class="big-picture-freq" data-big-frequency="income"
+                        aria-label="Income frequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <span class="big-picture-monthly" id="bigPictureIncomeMonthly">$0.00 / mo</span>
+              </div>
+
+              <div class="big-picture-row">
+                <label class="big-picture-label" for="bigPictureDebt">Debt payments</label>
+                <div class="big-picture-input">
+                  <span class="money-prefix" aria-hidden="true">$</span>
+                  <input type="number" id="bigPictureDebt" data-big-category="debt_payment"
+                         min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                         aria-describedby="bigPictureDebtMonthly" />
+                </div>
+                <select id="bigPictureDebtFreq" class="big-picture-freq" data-big-frequency="debt_payment"
+                        aria-label="Debt payments frequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <span class="big-picture-monthly" id="bigPictureDebtMonthly">$0.00 / mo</span>
+              </div>
+
+              <div class="big-picture-row">
+                <label class="big-picture-label" for="bigPictureSchooling">
+                  Schooling expenses <span class="optional">tuition, etc.</span>
+                </label>
+                <div class="big-picture-input">
+                  <span class="money-prefix" aria-hidden="true">$</span>
+                  <input type="number" id="bigPictureSchooling" data-big-category="schooling"
+                         min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                         aria-describedby="bigPictureSchoolingMonthly" />
+                </div>
+                <select id="bigPictureSchoolingFreq" class="big-picture-freq" data-big-frequency="schooling"
+                        aria-label="Schooling expenses frequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <span class="big-picture-monthly" id="bigPictureSchoolingMonthly">$0.00 / mo</span>
+              </div>
+
+              <div class="big-picture-row">
+                <label class="big-picture-label" for="bigPictureInsurance">Insurance</label>
+                <div class="big-picture-input">
+                  <span class="money-prefix" aria-hidden="true">$</span>
+                  <input type="number" id="bigPictureInsurance" data-big-category="insurance"
+                         min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                         aria-describedby="bigPictureInsuranceMonthly" />
+                </div>
+                <select id="bigPictureInsuranceFreq" class="big-picture-freq" data-big-frequency="insurance"
+                        aria-label="Insurance frequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <span class="big-picture-monthly" id="bigPictureInsuranceMonthly">$0.00 / mo</span>
+              </div>
+
+              <div class="big-picture-row">
+                <label class="big-picture-label" for="bigPictureSavings">Savings goals</label>
+                <div class="big-picture-input">
+                  <span class="money-prefix" aria-hidden="true">$</span>
+                  <input type="number" id="bigPictureSavings" data-big-category="savings"
+                         min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                         aria-describedby="bigPictureSavingsMonthly" />
+                </div>
+                <select id="bigPictureSavingsFreq" class="big-picture-freq" data-big-frequency="savings"
+                        aria-label="Savings goals frequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <span class="big-picture-monthly" id="bigPictureSavingsMonthly">$0.00 / mo</span>
+              </div>
+            </div>
+
+            <div class="big-picture-summary">
+              <div class="stat-card">
+                <span class="stat-label">Income</span>
+                <span class="stat-value" id="bigPictureIncomeValue">$0.00</span>
+                <span class="stat-sub">per month</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Recurring payments</span>
+                <span class="stat-value" id="bigPictureRecurringValue">$0.00</span>
+                <span class="stat-sub">debt + schooling + insurance</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Savings</span>
+                <span class="stat-value" id="bigPictureSavingsValue">$0.00</span>
+                <span class="stat-sub">per month</span>
+              </div>
+              <div class="stat-card" id="bigPictureBudgetCard">
+                <span class="stat-label">Budget</span>
+                <span class="stat-value" id="bigPictureBudgetValue">$0.00</span>
+                <span class="stat-sub">income − recurring − savings</span>
+              </div>
+            </div>
+
+            <p class="big-picture-formula" id="bigPictureFormula">Enter income to calculate the monthly budget.</p>
+
+            <div class="big-picture-foot">
+              <button type="submit" class="btn-submit" id="saveBigPictureBtn">Save Big Picture</button>
+            </div>
+            <div class="status-msg" id="bigPictureStatus" role="status"></div>
+          </form>
+        </section>
+
         <!-- ADD ONE TRANSACTION -->
-        <section class="card option-panel" id="transactionPanel" role="tabpanel" aria-labelledby="transactionTab">
+        <section class="card option-panel" id="transactionPanel" role="tabpanel" aria-labelledby="transactionTab" hidden>
           <div class="card-head">
             <div>
               <span class="eyebrow">Add one transaction</span>
@@ -87,6 +266,11 @@
                      placeholder="e.g. lunch with friends" />
             </div>
 
+            <label class="check-field" for="transactionRecurring">
+              <input type="checkbox" id="transactionRecurring" name="recurring" />
+              <span>Recurring expense <span class="optional">rent, subscriptions, bills</span></span>
+            </label>
+
             <div class="add-foot">
               <p class="add-hint" id="transactionHint"></p>
               <button type="submit" class="btn-submit" id="transactionBtn">Add transaction</button>
@@ -104,7 +288,7 @@
             </div>
             <p class="hint" id="monthlyHint"></p>
           </div>
-          <p class="form-hint">Set what you expect to spend each month. Actual spending updates automatically from the transactions you log in the other tab.</p>
+          <p class="form-hint">Set what you expect to spend each month. Actual spending updates automatically from the transactions you log in the other tab. The Big Picture budget sets the overall total; these category targets are scaled to fit it on the Stats tab.</p>
 
           <div class="monthly-wrap">
             <table class="plan-table monthly-table">

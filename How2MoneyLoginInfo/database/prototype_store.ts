@@ -2,11 +2,12 @@
 //
 // The authenticated parts of the app still use Postgres, but the shared
 // prototype profile lives in a local workbook so quick tests do not need a
-// database. The workbook has three sheets that mirror the DB tables:
+// database. The workbook has four sheets that mirror the DB tables:
 //
 //   profiles             one row for the shared `prototype` profile
 //   profile_expenses     the expected monthly setup, one row per bucket
 //   profile_transactions individual purchases
+//   profile_big_picture  income, fixed payments, and savings goals
 //
 // Every operation is serialized in this process so two saves cannot write the
 // same workbook at once. Writes go to a temp file first, then replace the real
@@ -40,8 +41,26 @@ const SHEETS = {
         'spent_on',
         'note',
         'created_at',
+        'recurring',
+    ],
+    profile_big_picture: [
+        'profile_id',
+        'category',
+        'amount',
+        'frequency',
+        'updated_at',
     ],
 } as const;
+
+export const BIG_PICTURE_CATEGORIES = [
+    'income',
+    'debt_payment',
+    'schooling',
+    'insurance',
+    'savings',
+] as const;
+
+export type BigPictureCategory = (typeof BIG_PICTURE_CATEGORIES)[number];
 
 type SheetName = keyof typeof SHEETS;
 
@@ -76,6 +95,20 @@ export type MonthlySetupInput = {
     frequency: string;
 };
 
+export type StoredBigPictureEntry = {
+    category: string;
+    amount: string;
+    monthly_amount: string;
+    frequency: string;
+    updated_at: Date;
+};
+
+export type BigPictureInput = {
+    category: string;
+    amount: number;
+    frequency: string;
+};
+
 export type ProfileMonthlyActual = {
     bucket: string;
     actual: string;
@@ -89,6 +122,7 @@ export type StoredProfileTransaction = {
     amount: string;
     spent_on: string;
     note: string;
+    recurring: boolean;
     created_at: Date;
 };
 
@@ -98,6 +132,7 @@ export type ProfileTransactionInput = {
     amount: number;
     spentOn: string;
     note: string;
+    recurring: boolean;
 };
 
 // Walk up from this file until we find expense_weight.json, the same way
@@ -119,6 +154,11 @@ function resolveStorageFile(): string {
 }
 
 export const PROTOTYPE_STORAGE_FILE = resolveStorageFile();
+
+// Only the default workbook gets the sample-data seed. An explicit
+// PROTOTYPE_STORAGE_FILE is usually a test file or a sample fixture, and
+// silently filling it would make "empty workbook" tests impossible.
+const USING_DEFAULT_STORAGE = !process.env.PROTOTYPE_STORAGE_FILE?.trim();
 
 export function prototypeStorePath(): string {
     return PROTOTYPE_STORAGE_FILE;
@@ -183,6 +223,13 @@ function cellDay(cell: Cell): string {
     const text = cellText(cell);
     const match = /^(\d{4}-\d{2}-\d{2})/.exec(text);
     return match?.[1] ?? text;
+}
+
+function cellBoolean(cell: Cell): boolean {
+    const value = cell.value;
+    if (typeof value === 'boolean') return value;
+    const text = cellText(cell).trim().toLowerCase();
+    return text === 'true' || text === 'yes' || text === '1';
 }
 
 function cellDetail(cell: Cell): Record<string, unknown> {
@@ -325,6 +372,26 @@ function readExpenses(workbook: Workbook, profileId: string): StoredProfileExpen
         .sort((a, b) => a.category.localeCompare(b.category));
 }
 
+function readBigPicture(workbook: Workbook, profileId: string): StoredBigPictureEntry[] {
+    const sheet = workbook.getWorksheet('profile_big_picture');
+    if (!sheet) return [];
+
+    return dataRows(sheet)
+        .filter(({ row }) => cellText(row.getCell(1)) === profileId)
+        .map(({ row }) => {
+            const amount = cellNumber(row.getCell(3));
+            const frequency = cellText(row.getCell(4)) || 'monthly';
+            return {
+                category: cellText(row.getCell(2)),
+                amount: money(amount),
+                monthly_amount: money(monthlyAmount(amount, frequency)),
+                frequency,
+                updated_at: cellDate(row.getCell(5), new Date(0)),
+            };
+        })
+        .sort((a, b) => a.category.localeCompare(b.category));
+}
+
 function readTransactions(workbook: Workbook, profileId: string, limit = Number.POSITIVE_INFINITY): StoredProfileTransaction[] {
     const sheet = workbook.getWorksheet('profile_transactions');
     if (!sheet) return [];
@@ -338,6 +405,7 @@ function readTransactions(workbook: Workbook, profileId: string, limit = Number.
             amount: money(cellNumber(row.getCell(5))),
             spent_on: cellDay(row.getCell(6)),
             note: cellText(row.getCell(7)),
+            recurring: cellBoolean(row.getCell(9)),
             created_at: cellDate(row.getCell(8), new Date(0)),
         }))
         .sort((a, b) => {
@@ -409,11 +477,52 @@ function nextTransactionId(workbook: Workbook): number {
     return highest + 1;
 }
 
+function sampleWorkbookPath(): string {
+    return path.join(findRepoRoot(), 'sample_data', 'prototype_six_months.xlsx');
+}
+
+function workbookHasData(workbook: Workbook): boolean {
+    for (const name of ['profile_expenses', 'profile_transactions', 'profile_big_picture'] as const) {
+        const sheet = workbook.getWorksheet(name);
+        if (sheet && dataRows(sheet).length > 0) return true;
+    }
+    return false;
+}
+
+// The checked-in sample workbook makes the dashboard useful on a fresh clone.
+// Only copy it when the default workbook is missing or has no budget rows, so
+// an existing local profile is never overwritten.
+async function seedDefaultWorkbookFromSample(): Promise<boolean> {
+    if (!USING_DEFAULT_STORAGE) return false;
+    const sample = sampleWorkbookPath();
+    if (!fs.existsSync(sample)) return false;
+
+    if (fs.existsSync(PROTOTYPE_STORAGE_FILE)) {
+        const existing = new Workbook();
+        try {
+            await existing.xlsx.readFile(PROTOTYPE_STORAGE_FILE);
+        } catch (err) {
+            console.error('Could not inspect the default prototype workbook before seeding:', err);
+            return false;
+        }
+        if (workbookHasData(existing)) return false;
+    }
+
+    fs.mkdirSync(path.dirname(PROTOTYPE_STORAGE_FILE), { recursive: true });
+    fs.copyFileSync(sample, PROTOTYPE_STORAGE_FILE);
+    return true;
+}
+
 // Create the workbook and its header rows if they do not exist yet. Called on
 // server start so the file is ready for a quick test without waiting for the
 // first API request.
 export async function initPrototypeStore(): Promise<string> {
     return serial(async () => {
+        const seeded = await seedDefaultWorkbookFromSample();
+        if (seeded) {
+            console.log(`Seeded default prototype workbook from ${sampleWorkbookPath()}`);
+        }
+
         const { workbook, changed } = await loadWorkbook();
         if (changed) await saveWorkbook(workbook);
         return PROTOTYPE_STORAGE_FILE;
@@ -433,6 +542,13 @@ export async function listProfileExpenses(profileId: string): Promise<StoredProf
     return serial(async () => {
         const { workbook } = await loadWorkbook();
         return readExpenses(workbook, profileId);
+    });
+}
+
+export async function listBigPicture(profileId: string): Promise<StoredBigPictureEntry[]> {
+    return serial(async () => {
+        const { workbook } = await loadWorkbook();
+        return readBigPicture(workbook, profileId);
     });
 }
 
@@ -559,6 +675,63 @@ export async function replaceMonthlySetup(
     });
 }
 
+// The Big Picture planner replaces all five rows in one save. Clearing an
+// input removes that row, which is what makes the budget fall back to the
+// monthly setup when nothing is configured.
+export async function replaceBigPicture(
+    profileId: string,
+    entries: BigPictureInput[]
+): Promise<void> {
+    return serial(async () => {
+        const { workbook } = await loadWorkbook();
+        const profile = findProfile(workbook);
+        if (!profile) {
+            const created = ensureProfile(workbook);
+            profileId = created.profile.profile_id;
+        }
+
+        const sheet = workbook.getWorksheet('profile_big_picture');
+        if (!sheet) throw new Error('The profile_big_picture sheet is missing.');
+
+        const keep = new Set(entries.map(entry => entry.category));
+        const rowsToRemove = dataRows(sheet)
+            .filter(
+                ({ row }) =>
+                    cellText(row.getCell(1)) === profileId && !keep.has(cellText(row.getCell(2)))
+            )
+            .map(({ rowNumber }) => rowNumber)
+            .sort((a, b) => b - a);
+
+        for (const rowNumber of rowsToRemove) sheet.spliceRows(rowNumber, 1);
+
+        const timestamp = now().toISOString();
+        for (const entry of entries) {
+            const row = dataRows(sheet).find(
+                ({ row: candidate }) =>
+                    cellText(candidate.getCell(1)) === profileId &&
+                    cellText(candidate.getCell(2)) === entry.category
+            );
+
+            if (row) {
+                row.row.getCell(3).value = entry.amount;
+                row.row.getCell(4).value = entry.frequency;
+                row.row.getCell(5).value = timestamp;
+            } else {
+                sheet.addRow([
+                    profileId,
+                    entry.category,
+                    entry.amount,
+                    entry.frequency,
+                    timestamp,
+                ]);
+            }
+        }
+
+        touchProfile(workbook, profileId);
+        await saveWorkbook(workbook);
+    });
+}
+
 export async function listMonthlyActuals(profileId: string): Promise<ProfileMonthlyActual[]> {
     return serial(async () => {
         const { workbook } = await loadWorkbook();
@@ -593,6 +766,16 @@ export async function listProfileTransactions(
     });
 }
 
+// Stats need the whole history, not just the recent list the dashboard shows.
+export async function listAllProfileTransactions(
+    profileId: string
+): Promise<StoredProfileTransaction[]> {
+    return serial(async () => {
+        const { workbook } = await loadWorkbook();
+        return readTransactions(workbook, profileId);
+    });
+}
+
 export async function addProfileTransaction(
     profileId: string,
     transaction: ProfileTransactionInput
@@ -617,6 +800,7 @@ export async function addProfileTransaction(
             transaction.spentOn,
             transaction.note,
             now().toISOString(),
+            transaction.recurring,
         ]);
 
         touchProfile(workbook, profileId);

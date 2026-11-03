@@ -13,9 +13,11 @@
 //            GET  /api/spend?period=week|month
 //            POST /api/spend
 //            GET  /api/prototype/profile        (no login, shared profile)
+//            GET  /api/prototype/stats          (no login, week/month/year charts)
 //            POST /api/prototype/transactions   (no login, add one purchase)
 //            POST /api/prototype/transactions/remove
 //            POST /api/prototype/monthly-setup  (no login, replace expected amounts)
+//            POST /api/prototype/big-picture    (no login, income, fixed costs, savings)
 //            POST /api/prototype/expenses       (no login, add/update one bucket)
 //            POST /api/prototype/expenses/remove
 //
@@ -54,24 +56,32 @@ import {
 import { listSpendEntries, listSpendEntriesForWindow, nextPeriodWindow, saveSpendEntries } from './database/db_spend';
 import type { Period, SpendEntryInput } from './database/db_spend';
 import {
+    BIG_PICTURE_CATEGORIES,
     addProfileTransaction,
     ensurePrototypeProfile,
     initPrototypeStore,
+    listAllProfileTransactions,
+    listBigPicture,
     listMonthlyActuals,
     listProfileExpenses,
     listProfileTransactions,
     removeProfileExpense,
     removeProfileTransaction,
+    replaceBigPicture,
     replaceMonthlySetup,
     upsertProfileExpense,
 } from './database/prototype_store';
 import type {
+    BigPictureInput,
     MonthlySetupInput,
     ProfileMonthlyActual,
+    StoredBigPictureEntry,
     StoredProfile,
     StoredProfileExpense,
     StoredProfileTransaction,
 } from './database/prototype_store';
+import { buildPrototypeStats } from './database/prototype_stats';
+import type { StatsPeriod } from './database/prototype_stats';
 import { runMigrations } from './database/migrate';
 import { rateLimit } from './rate_limit';
 
@@ -131,7 +141,18 @@ function toPeriod(value: unknown): Period {
     return str(value) === 'month' ? 'month' : 'week';
 }
 
+function toStatsPeriod(value: unknown): StatsPeriod {
+    const text = str(value);
+    return text === 'week' || text === 'year' ? text : 'month';
+}
+
 const VALID_FREQUENCIES = new Set(['monthly', 'yearly', 'weekly']);
+const BIG_PICTURE_CATEGORY_SET = new Set<string>(BIG_PICTURE_CATEGORIES);
+const BIG_PICTURE_FREQUENCIES = new Set(['monthly', 'yearly']);
+
+function round2(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+}
 
 // Keep only the optional breakdown fields that belong to the bucket, and only
 // when they hold a real number. Same rules the assessment form uses.
@@ -174,14 +195,51 @@ function transactionBucket(category: string, bucket: string): string | null {
     return (BUCKET_DETAIL_FIELDS[bucket] ?? []).includes(category) ? bucket : null;
 }
 
+function bigPictureResponse(entries: StoredBigPictureEntry[]) {
+    const monthlyByCategory = new Map(
+        entries.map(entry => [entry.category, Number(entry.monthly_amount) || 0])
+    );
+    const monthly = (category: string): number => monthlyByCategory.get(category) ?? 0;
+
+    const income = monthly('income');
+    const debtPayment = monthly('debt_payment');
+    const schooling = monthly('schooling');
+    const insurance = monthly('insurance');
+    const savings = monthly('savings');
+    const recurring = debtPayment + schooling + insurance;
+    const budget = income - recurring - savings;
+
+    return {
+        entries: entries.map(entry => ({
+            category: entry.category,
+            amount: Number(entry.amount),
+            monthly_amount: Number(entry.monthly_amount),
+            frequency: entry.frequency,
+            updated_at: entry.updated_at,
+        })),
+        totals: {
+            income: round2(income),
+            debt_payment: round2(debtPayment),
+            schooling: round2(schooling),
+            insurance: round2(insurance),
+            recurring: round2(recurring),
+            savings: round2(savings),
+            budget: round2(budget),
+            configured: entries.some(entry => Number(entry.amount) > 0),
+        },
+    };
+}
+
 // The full dashboard payload: the expected monthly setup, the actual spending
-// for the current month, and the recent individual transactions. Every mutate
-// route returns this so the page can re-render from one response.
+// for the current month, the recent individual transactions, and the Big
+// Picture planner. Every mutate route returns this so the page can re-render
+// from one response.
 function prototypeProfileResponse(
     profile: StoredProfile,
     expenses: StoredProfileExpense[],
     actuals: ProfileMonthlyActual[],
-    transactions: StoredProfileTransaction[]
+    transactions: StoredProfileTransaction[],
+    bigPicture: StoredBigPictureEntry[]
 ) {
     const expectedByBucket = new Map(expenses.map(e => [e.category, e]));
     const actualByBucket = new Map(actuals.map(a => [a.bucket, a]));
@@ -233,6 +291,7 @@ function prototypeProfileResponse(
         },
         buckets,
         monthly,
+        big_picture: bigPictureResponse(bigPicture),
         transactions: transactions.map(t => ({
             id: t.transaction_id,
             category: t.category,
@@ -240,6 +299,7 @@ function prototypeProfileResponse(
             amount: Number(t.amount),
             spent_on: t.spent_on,
             note: t.note,
+            recurring: t.recurring,
             created_at: t.created_at,
         })),
     };
@@ -247,12 +307,13 @@ function prototypeProfileResponse(
 
 async function prototypePayload() {
     const profile = await ensurePrototypeProfile();
-    const [expenses, actuals, transactions] = await Promise.all([
+    const [expenses, actuals, transactions, bigPicture] = await Promise.all([
         listProfileExpenses(profile.profile_id),
         listMonthlyActuals(profile.profile_id),
         listProfileTransactions(profile.profile_id),
+        listBigPicture(profile.profile_id),
     ]);
-    return prototypeProfileResponse(profile, expenses, actuals, transactions);
+    return prototypeProfileResponse(profile, expenses, actuals, transactions, bigPicture);
 }
 
 /* ─────────────────────────────────────────────────
@@ -413,6 +474,45 @@ app.get('/api/prototype/profile', async (_req, res) => {
     }
 });
 
+// Charts for the default stats view. Everything is computed from the workbook,
+// so this still works when Postgres is down.
+app.get('/api/prototype/stats', async (req, res) => {
+    const period = toStatsPeriod(req.query.period);
+
+    try {
+        const profile = await ensurePrototypeProfile();
+        const [expenses, transactions, bigPicture] = await Promise.all([
+            listProfileExpenses(profile.profile_id),
+            listAllProfileTransactions(profile.profile_id),
+            listBigPicture(profile.profile_id),
+        ]);
+
+        const expectedByBucket: Record<string, number> = {};
+        for (const expense of expenses) {
+            expectedByBucket[expense.category] = Number(expense.monthly_amount) || 0;
+        }
+
+        const bigPictureTotals = bigPictureResponse(bigPicture).totals;
+        const stats = buildPrototypeStats({
+            period,
+            transactions: transactions.map(transaction => ({
+                bucket: transaction.bucket,
+                amount: Number(transaction.amount),
+                spent_on: transaction.spent_on,
+                recurring: transaction.recurring,
+            })),
+            expectedByBucket,
+            bigPictureBudget: bigPictureTotals.configured ? bigPictureTotals.budget : null,
+            labels: BUCKET_LABELS,
+        });
+
+        return res.json({ ok: true, mode: 'prototype', ...stats });
+    } catch (err) {
+        console.error('prototype stats failed:', err);
+        return res.status(500).json({ ok: false, error: 'Could not load spending stats.' });
+    }
+});
+
 // Save one individual purchase. `category` is either a bucket (shopping,
 // travel) or one of its breakdown fields (fast food, groceries, ...).
 app.post('/api/prototype/transactions', async (req, res) => {
@@ -436,6 +536,12 @@ app.post('/api/prototype/transactions', async (req, res) => {
     }
     const spentOn = dateString(rawDate) || todayString();
     const note = str(body.note).trim().slice(0, 200);
+    const recurring =
+        body.recurring === true ||
+        body.recurring === 'true' ||
+        body.recurring === 1 ||
+        body.recurring === '1' ||
+        body.recurring === 'on';
 
     try {
         const profile = await ensurePrototypeProfile();
@@ -445,6 +551,7 @@ app.post('/api/prototype/transactions', async (req, res) => {
             amount,
             spentOn,
             note,
+            recurring,
         });
         return res.json(await prototypePayload());
     } catch (err) {
@@ -511,6 +618,46 @@ app.post('/api/prototype/monthly-setup', async (req, res) => {
     } catch (err) {
         console.error('prototype monthly setup save failed:', err);
         return res.status(500).json({ ok: false, error: 'Could not save the monthly setup.' });
+    }
+});
+
+// Replace the five Big Picture rows in one save. Amounts are entered monthly
+// or yearly; the response carries the monthly-normalised totals and the
+// resulting budget, which the Stats tab uses as its target.
+app.post('/api/prototype/big-picture', async (req, res) => {
+    const body = asRecord(req.body) ?? {};
+    if (!Array.isArray(body.entries)) {
+        return res.status(400).json({ ok: false, error: 'Send an entries array.' });
+    }
+
+    const entries: BigPictureInput[] = [];
+    for (const item of body.entries as unknown[]) {
+        const entry = asRecord(item);
+        if (!entry) continue;
+
+        const category = str(entry.category);
+        if (!BIG_PICTURE_CATEGORY_SET.has(category)) continue;
+
+        const amount = Number(entry.amount);
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+
+        const frequency = str(entry.frequency);
+        if (!BIG_PICTURE_FREQUENCIES.has(frequency)) {
+            return res.status(400).json({ ok: false, error: 'Use a monthly or yearly frequency.' });
+        }
+
+        const existing = entries.findIndex(e => e.category === category);
+        if (existing >= 0) entries[existing] = { category, amount, frequency };
+        else entries.push({ category, amount, frequency });
+    }
+
+    try {
+        const profile = await ensurePrototypeProfile();
+        await replaceBigPicture(profile.profile_id, entries);
+        return res.json(await prototypePayload());
+    } catch (err) {
+        console.error('prototype big picture save failed:', err);
+        return res.status(500).json({ ok: false, error: 'Could not save the Big Picture.' });
     }
 });
 
