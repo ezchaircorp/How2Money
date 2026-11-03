@@ -31,7 +31,7 @@ const state = {
   monthly: [],
   transactions: [],
   bigPicture: { entries: [], totals: {} },
-  statsPeriod: 'month',
+  statsPeriod: 'six',
   stats: null,
   statsRequest: 0,
 };
@@ -167,8 +167,8 @@ function todayString() {
 function formatDate(value) {
   if (!value) return '';
   const text = value instanceof Date
-    ? value
-    : (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
+      ? value
+      : (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
   const d = new Date(text);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -200,9 +200,9 @@ function el(tag, className, text) {
 
 function prettyKey(key) {
   return String(key || '')
-    .replace(/^expense_/, '')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, char => char.toUpperCase());
+      .replace(/^expense_/, '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, char => char.toUpperCase());
 }
 
 async function api(path, options = {}) {
@@ -271,7 +271,7 @@ function niceCeil(value) {
 }
 
 function periodWord(period) {
-  return period === 'week' ? 'Weekly' : period === 'year' ? 'Yearly' : 'Monthly';
+  return { week: 'Weekly', month: 'Monthly', six: 'Six-month', year: 'Yearly' }[period] || 'Six-month';
 }
 
 function chartEmpty(holder, message) {
@@ -317,8 +317,8 @@ function renderSpendingChart(series) {
   }
 
   const expectedPoints = series
-    .map((point, index) => `${xCenter(index)},${yFor(num(point.expected))}`)
-    .join(' ');
+      .map((point, index) => `${xCenter(index)},${yFor(num(point.expected))}`)
+      .join(' ');
   svg.appendChild(svgNode('polyline', { points: expectedPoints, class: 'chart-line' }));
 
   const barWidth = Math.max(2, Math.min(34, (plotW / series.length) * 0.62));
@@ -429,7 +429,7 @@ function renderBudgetChart(categories) {
   holder.innerHTML = '';
 
   const rows = (Array.isArray(categories) ? categories : [])
-    .filter(category => num(category.actual) > 0 || num(category.expected) > 0);
+      .filter(category => num(category.actual) > 0 || num(category.expected) > 0);
 
   if (rows.length === 0) {
     chartEmpty(holder, 'Set a monthly budget or add a transaction to compare them here.');
@@ -494,8 +494,8 @@ function renderStatsSummary(totals) {
       label: 'Budget',
       value: money.format(expected),
       sub: totals.budgetSource === 'big_picture'
-        ? 'From the Big Picture plan'
-        : expected > 0 ? 'From the monthly setup' : 'Set a budget in Big Picture',
+          ? 'From the Big Picture plan'
+          : expected > 0 ? 'From the monthly setup' : 'Set a budget in Big Picture',
       cls: '',
     },
     {
@@ -525,8 +525,8 @@ function renderStats(data) {
   const totals = data.totals || {};
   const range = data.range || {};
   document.getElementById('statsRange').textContent = range.label
-    ? `${range.label} · ${periodWord(data.period)} view`
-    : `${periodWord(data.period)} view`;
+      ? `${range.label} · ${periodWord(data.period)} view`
+      : `${periodWord(data.period)} view`;
 
   renderStatsSummary(totals);
   renderSpendingChart(data.series);
@@ -557,7 +557,7 @@ async function loadStats() {
 }
 
 function setStatsPeriod(period) {
-  state.statsPeriod = period === 'week' || period === 'year' ? period : 'month';
+  state.statsPeriod = ['week', 'month', 'six', 'year'].includes(period) ? period : 'six';
   document.querySelectorAll('.period-btn').forEach(button => {
     button.classList.toggle('active', button.dataset.period === state.statsPeriod);
   });
@@ -572,8 +572,8 @@ function renderProfile() {
   const bigPicture = state.bigPicture || {};
   const bigPictureTotals = bigPicture.totals || {};
   const bigPictureBudget = bigPictureTotals.configured
-    ? money.format(num(bigPictureTotals.budget))
-    : 'Not set';
+      ? money.format(num(bigPictureTotals.budget))
+      : 'Not set';
 
   document.getElementById('profileName').textContent = profile.display_name || 'Prototype profile';
   document.getElementById('profileEmail').textContent = 'Shared demo profile — no account needed.';
@@ -616,7 +616,7 @@ function renderTransactions() {
 
     const head = el('div', 'history-window');
     head.appendChild(el('span', 'when',
-      `${formatDate(t.spent_on)} · ${categoryLabel(t.category, t.bucket)}`));
+        `${formatDate(t.spent_on)} · ${categoryLabel(t.category, t.bucket)}`));
     head.appendChild(el('span', 'total', money.format(num(t.amount))));
     li.appendChild(head);
 
@@ -645,8 +645,8 @@ function transactionCategories() {
   for (const bucket of state.buckets) {
     const fields = Array.isArray(bucket.detailFields) ? bucket.detailFields : [];
     const items = fields.length
-      ? fields.map(key => ({ key, label: DETAIL_LABELS[key] || prettyKey(key) }))
-      : [{ key: bucket.bucket, label: bucket.label }];
+        ? fields.map(key => ({ key, label: DETAIL_LABELS[key] || prettyKey(key) }))
+        : [{ key: bucket.bucket, label: bucket.label }];
     groups.push({ bucket, items });
   }
   return groups;
@@ -706,8 +706,8 @@ function updateTransactionHint() {
   }
 
   hint.textContent = amount > 0
-    ? `Adds ${money.format(amount)} to ${selected.label}${date ? ` on ${formatDate(date)}` : ''}.`
-    : `Pick an amount for ${selected.label}.`;
+      ? `Adds ${money.format(amount)} to ${selected.label}${date ? ` on ${formatDate(date)}` : ''}.`
+      : `Pick an amount for ${selected.label}.`;
 }
 
 /* ─────────────────────────────────────────────────
@@ -761,7 +761,7 @@ function renderMonthly() {
     nameCell.appendChild(el('span', 'plan-name', row.label));
     if (row.transactionCount > 0) {
       nameCell.appendChild(el('span', 'plan-cats',
-        `${row.transactionCount} transaction${row.transactionCount === 1 ? '' : 's'} this month`));
+          `${row.transactionCount} transaction${row.transactionCount === 1 ? '' : 's'} this month`));
     }
     tr.appendChild(nameCell);
 
@@ -848,9 +848,9 @@ function updateMonthlyTotals() {
   const { rows, expected, actual, count } = monthlyTotals();
 
   document.getElementById('monthlyTotals').textContent =
-    `Expected ${money.format(expected)} / month · Actual ${money.format(actual)} this month`;
+      `Expected ${money.format(expected)} / month · Actual ${money.format(actual)} this month`;
   document.getElementById('monthlyHint').textContent =
-    count ? `${count} of ${rows.length} categories set` : 'No expected amounts yet';
+      count ? `${count} of ${rows.length} categories set` : 'No expected amounts yet';
 
   for (const tr of rows) updateMonthlyRow(tr);
 }
@@ -887,8 +887,8 @@ function renderBigPicture(drafts = null) {
     const amount = draft ? num(draft.amount) : num(entry?.amount);
     input.value = amount > 0 ? amount.toFixed(2) : '';
     frequency.value = draft
-      ? draft.frequency
-      : (entry?.frequency === 'yearly' ? 'yearly' : 'monthly');
+        ? draft.frequency
+        : (entry?.frequency === 'yearly' ? 'yearly' : 'monthly');
   }
 
   updateBigPictureSummary();
@@ -920,7 +920,7 @@ function updateBigPictureSummary() {
 
   const income = values.income.monthly;
   const recurring =
-    values.debt_payment.monthly + values.schooling.monthly + values.insurance.monthly;
+      values.debt_payment.monthly + values.schooling.monthly + values.insurance.monthly;
   const savings = values.savings.monthly;
   const budget = income - recurring - savings;
 
@@ -945,17 +945,17 @@ function updateBigPictureSummary() {
   if (budget < -0.005) {
     formula.className = 'big-picture-formula negative';
     formula.textContent =
-      `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
-      `${money.format(savings)} savings = ${money.format(budget)} budget. ` +
-      'That is over income, so the Stats tab treats the budget as $0 until this is balanced.';
+        `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
+        `${money.format(savings)} savings = ${money.format(budget)} budget. ` +
+        'That is over income, so the Stats tab treats the budget as $0 until this is balanced.';
     hint.textContent = 'Budget is over income';
     return;
   }
 
   formula.className = 'big-picture-formula';
   formula.textContent =
-    `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
-    `${money.format(savings)} savings = ${money.format(budget)} budget per month.`;
+      `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
+      `${money.format(savings)} savings = ${money.format(budget)} budget per month.`;
   hint.textContent = 'This budget drives the Stats tab';
 }
 
@@ -1272,7 +1272,7 @@ async function init() {
     // error instead of hiding the page behind a generic error card.
     applyProfile(fallbackPayload());
     showStatus(loadStatus, 'error',
-      'The saved profile could not load. The forms are still visible, but saving will fail until the server is running.');
+        'The saved profile could not load. The forms are still visible, but saving will fail until the server is running.');
     console.error(err);
   } finally {
     loading.hidden = true;

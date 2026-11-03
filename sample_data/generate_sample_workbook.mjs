@@ -57,7 +57,7 @@ function daysInMonth(year, monthIndex) {
 
 const now = new Date();
 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-const profileId = 'sample-profile-six-months';
+const profileId = 1;
 
 const transactions = [];
 let nextTransactionId = 1;

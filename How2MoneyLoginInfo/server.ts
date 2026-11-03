@@ -84,14 +84,22 @@ import { buildPrototypeStats } from './database/prototype_stats';
 import type { StatsPeriod } from './database/prototype_stats';
 import { runMigrations } from './database/migrate';
 import { rateLimit } from './rate_limit';
+import { handlePrototypeRequest } from './database/prototype_workbook';
+
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
 
 // The static site lives one level up from this app.
 const SITE_DIR = path.resolve(__dirname, '..', 'html_files');
 
 app.use(express.json());
+
+// The dashboard's data and charts come straight from the Excel workbook.
+app.use((req, res, next) => {
+    handlePrototypeRequest(req, res).then(done => { if (!done) next(); }).catch(next);
+});
 
 /* ─────────────────────────────────────────────────
    SMALL HELPERS
@@ -904,7 +912,7 @@ async function start(): Promise<void> {
         // its Excel file. Login/assessment routes need Postgres.
         console.error(
             'Database setup failed — login/assessment APIs will error until Postgres is reachable. ' +
-                'The prototype dashboard still uses prototype_data_storage.xlsx.',
+            'The prototype dashboard still uses prototype_data_storage.xlsx.',
             err
         );
     }

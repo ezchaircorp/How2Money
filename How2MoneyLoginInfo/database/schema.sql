@@ -18,3 +18,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS login_info_useremail_key
 
 CREATE UNIQUE INDEX IF NOT EXISTS login_info_username_key
     ON login_info (Username);
+
