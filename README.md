@@ -11,7 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.0-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Rust](https://img.shields.io/badge/Rust-1.98-orange?logo=rust)](https://www.rust-lang.org/)
 ![License](https://img.shields.io/badge/license-Apache%202.0-red?logo=apache)
-![Version](https://img.shields.io/badge/version-idk-pink)
+![Version](https://img.shields.io/badge/version-1-pink)
 ![Downloads](https://img.shields.io/badge/downloads-None-green?logo=abdownloadmanager)
 ![Build status](https://img.shields.io/badge/build_status-good_idk_man-red)
 
