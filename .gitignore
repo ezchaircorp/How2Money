@@ -217,5 +217,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Local prototype dashboard data (created by How2MoneyLoginInfo/server.ts)
+prototype_data_storage.xlsx
+prototype_data_storage.xlsx.*.tmp
+
 # Per-contributor agent files — each contributor keeps their own AGENTS.md
 AGENTS.md

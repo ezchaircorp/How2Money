@@ -1,0 +1,128 @@
+/* Styles shared by login.html and signup.html.
+   Both auth pages use the same rules, so they link this one file instead of
+   duplicating the block in each page. No build step: this file is linked with a
+   plain relative path and works when the HTML is opened directly in a browser.
+   Page-specific tweaks belong in a separate file, not here. */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:   #0A1628;
+  --gold:   #C9A84C;
+  --gold-lt:#E8D5A3;
+  --warm:   #F7F5F0;
+  --text:   #2C2C2C;
+  --muted:  #6B7280;
+  --white:  #FFFFFF;
+  --border: #E2DDD5;
+  --error:  #C0392B;
+  --success:#1A7A4A;
+}
+
+body { font-family:'Inter', sans-serif; color:var(--text); background:var(--white); }
+
+/* ── NAV ── */
+nav {
+  position:fixed; top:0; width:100%; z-index:100;
+  background:rgba(10,22,40,0.97);
+  backdrop-filter:blur(8px);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 5%; height:68px;
+  border-bottom:1px solid rgba(201,168,76,0.2);
+}
+.nav-logo { font-family:'Monospace',serif; font-size:1.25rem; font-weight:600; color:var(--white); text-decoration:none; }
+.nav-logo span { color:var(--gold); }
+.nav-links { display:flex; gap:2.5rem; list-style:none; }
+.nav-links a { color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.875rem; font-weight:500; letter-spacing:0.04em; transition:color 0.2s; }
+.nav-links a:hover, .nav-links a.active { color:var(--gold); }
+.nav-cta { background:var(--gold); color:var(--navy); padding:0.5rem 1.25rem; border-radius:2px; font-size:0.8rem; font-weight:600; text-decoration:none; letter-spacing:0.05em; transition:background 0.2s; }
+.nav-cta:hover { background:var(--gold-lt); }
+
+/* ── AUTH LAYOUT ── */
+.auth-wrap {
+  display:grid; grid-template-columns:1fr 1fr;
+  min-height:100vh;
+}
+.auth-aside {
+  background:var(--navy); color:var(--white);
+  padding:140px 8% 80px;
+  display:flex; flex-direction:column; justify-content:center;
+}
+.auth-aside .eyebrow {
+  display:flex; align-items:center; gap:0.75rem; margin-bottom:1.5rem;
+  font-size:0.72rem; font-weight:600; letter-spacing:0.12em;
+  text-transform:uppercase; color:var(--gold);
+}
+.auth-aside .eyebrow::before { content:''; width:28px; height:1px; background:var(--gold); }
+.auth-aside h1 { font-family:'Playfair Display',serif; font-size:clamp(2rem,3.5vw,2.75rem); font-weight:700; line-height:1.2; margin-bottom:1.25rem; }
+.auth-aside h1 em { font-style:italic; color:var(--gold); }
+.auth-aside p { font-size:0.95rem; color:rgba(255,255,255,0.6); line-height:1.75; max-width:42ch; }
+.auth-points { list-style:none; margin-top:2.5rem; display:flex; flex-direction:column; gap:1rem; }
+.auth-points li { display:flex; align-items:flex-start; gap:0.75rem; font-size:0.9rem; color:rgba(255,255,255,0.8); }
+.auth-points .dot { width:6px; height:6px; border-radius:50%; background:var(--gold); margin-top:0.5rem; flex-shrink:0; }
+
+.auth-main {
+  padding:140px 8% 80px;
+  display:flex; flex-direction:column; justify-content:center;
+}
+.auth-card { max-width:440px; width:100%; margin:0 auto; }
+.auth-card .form-section-label {
+  display:flex; align-items:center; gap:0.5rem;
+  font-size:0.72rem; font-weight:600; letter-spacing:0.1em;
+  text-transform:uppercase; color:var(--gold); margin-bottom:1rem;
+}
+.auth-card .form-section-label::before { content:''; width:20px; height:1px; background:var(--gold); }
+.auth-card h2 { font-family:'Playfair Display',serif; font-size:1.85rem; font-weight:700; color:var(--navy); margin-bottom:0.5rem; }
+.auth-card .sub { font-size:0.9rem; color:var(--muted); line-height:1.7; margin-bottom:2rem; }
+
+.form-group { margin-bottom:1.5rem; }
+label { display:block; font-size:0.78rem; font-weight:600; color:var(--navy); margin-bottom:0.4rem; letter-spacing:0.02em; }
+label .req { color:var(--gold); margin-left:2px; }
+
+input[type="text"], input[type="email"], input[type="password"] {
+  width:100%; padding:0.7rem 0.875rem;
+  border:1px solid var(--border); border-radius:2px;
+  font-family:'Inter',sans-serif; font-size:0.875rem; color:var(--text);
+  background:var(--white);
+  transition:border-color 0.2s, box-shadow 0.2s;
+  outline:none;
+}
+input:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,168,76,0.15); }
+input.invalid { border-color:var(--error); }
+
+.btn-submit {
+  width:100%;
+  background:var(--gold); color:var(--navy);
+  padding:0.9rem 2rem; border-radius:2px; border:none;
+  font-family:'Inter',sans-serif; font-weight:600; font-size:0.9rem;
+  cursor:pointer; letter-spacing:0.02em; margin-top:0.5rem;
+  transition:background 0.2s, transform 0.1s;
+}
+.btn-submit:hover { background:var(--gold-lt); }
+.btn-submit:active { transform:scale(0.99); }
+.btn-submit:disabled { opacity:0.6; cursor:not-allowed; }
+
+.status-msg { padding:0.75rem 1rem; border-radius:2px; font-size:0.82rem; margin-top:1rem; display:none; line-height:1.5; }
+.status-msg.visible { display:block; }
+.status-msg.success { background:rgba(26,122,74,0.1); border:1px solid rgba(26,122,74,0.3); color:var(--success); }
+.status-msg.error { background:rgba(192,57,43,0.08); border:1px solid rgba(192,57,43,0.25); color:var(--error); }
+
+.auth-alt { margin-top:1.75rem; font-size:0.85rem; color:var(--muted); text-align:center; }
+.auth-alt a { color:var(--gold); font-weight:600; text-decoration:none; }
+.auth-alt a:hover { text-decoration:underline; }
+
+/* ── FOOTER ── */
+footer {
+  background:var(--navy);
+  border-top:1px solid rgba(201,168,76,0.15);
+  padding:2.5rem 8%;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;
+}
+.footer-logo { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--white); }
+.footer-logo span { color:var(--gold); }
+.footer-copy { font-size:0.78rem; color:rgba(255,255,255,0.35); }
+
+@media (max-width:900px) {
+  .auth-wrap { grid-template-columns:1fr; }
+  .auth-aside { display:none; }
+}

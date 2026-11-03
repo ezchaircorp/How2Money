@@ -7,7 +7,7 @@ import { pool } from './db_con';
 const ALLOWED_DOMAINS = ['@gmail.com', '@hotmail.com', '@yahoo.com'];
 const SALT_ROUNDS = 10;
 
-export type User = { name: string; email: string };
+export type User = { id: number; name: string; email: string };
 
 export type Result =
     | { ok: true; user: User }
@@ -52,12 +52,12 @@ export async function signup(
     }
 
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
-    await pool.query(
-        'INSERT INTO login_info (username, password, useremail) VALUES ($1, $2, $3)',
+    const inserted = await pool.query(
+        'INSERT INTO login_info (username, password, useremail) VALUES ($1, $2, $3) RETURNING userid',
         [username, hash, email]
     );
 
-    return { ok: true, user: { name: username, email } };
+    return { ok: true, user: { id: inserted.rows[0]!.userid, name: username, email } };
 }
 
 export async function login(email: string, password: string): Promise<Result> {
@@ -68,10 +68,12 @@ export async function login(email: string, password: string): Promise<Result> {
     }
 
     const result = await pool.query(
-        'SELECT username, password, useremail FROM login_info WHERE useremail = $1',
+        'SELECT userid, username, password, useremail FROM login_info WHERE useremail = $1',
         [email]
     );
-    const row = result.rows[0] as { username: string; password: string; useremail: string } | undefined;
+    const row = result.rows[0] as
+        | { userid: number; username: string; password: string; useremail: string }
+        | undefined;
 
     // Same message whether the email is missing or the password is wrong,
     // so nobody can probe which emails are registered
@@ -79,5 +81,5 @@ export async function login(email: string, password: string): Promise<Result> {
         return { ok: false, status: 401, error: 'Invalid email or password.' };
     }
 
-    return { ok: true, user: { name: row.username, email: row.useremail } };
+    return { ok: true, user: { id: row.userid, name: row.username, email: row.useremail } };
 }
