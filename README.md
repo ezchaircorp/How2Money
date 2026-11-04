@@ -30,12 +30,7 @@ We handle manage your spending!
 
 # Testing our product
 
-To test our product, clone our GitHub repo and in terminal, type (for Windows users) "start html_files/index.html" to open our website locally. From there you can access anything else on the website! 
-
-"npx tsx server.ts" to run the server. 
-
-
-
+To test our product, clone our GitHub repo and in terminal, change directory to "How2MoneyLoginInfo" and type (For Windows users) "npx tsx server.ts".
 
 
 
