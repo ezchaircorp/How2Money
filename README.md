@@ -30,8 +30,7 @@ We handle manage your spending!
 
 # Testing our product
 
-To test our product, clone our GitHub repo and in terminal, change directory to "How2MoneyLoginInfo" and type (For Windows users) "npx tsx server.ts".
-
+Run the bash script (**start_prototype.sh**). Then copy and paste the local host link into your browser, then you are good to go!. 
 
 
 
