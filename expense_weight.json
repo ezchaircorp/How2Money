@@ -4,6 +4,7 @@
   {"expense": "Gas & Fuel", "description": "Gas stations, EV charging, fuel", "val": 8, "cost_per_month": 200, "estimated": true},
   {"expense": "Groceries", "description": "Supermarkets, household food, basic supplies", "val": 10, "cost_per_month": 500, "estimated": true},
   {"expense": "Dining & Restaurants", "description": "Restaurants, takeout, delivery, cafés", "val": 4, "cost_per_month": 250, "estimated": true},
+  {"expense": "Fast Food & Delivery", "description": "Fast food runs, delivery apps, late-night snack orders", "val": 3, "cost_per_month": 120, "estimated": true},
   {"expense": "Transportation", "description": "Public transit, rideshare, parking, tolls", "val": 6, "cost_per_month": 80, "estimated": true},
   {"expense": "Auto & Vehicle", "description": "Repairs, maintenance, tires, registration", "val": 8, "cost_per_month": 150, "estimated": true},
   {"expense": "Travel", "description": "Flights, hotels, rental cars, vacation expenses", "val": 3, "cost_per_month": 200, "estimated": true},
@@ -17,6 +18,7 @@
   {"expense": "Education", "description": "Tuition, courses, books, educational materials", "val": 9, "cost_per_month": 150, "estimated": true},
   {"expense": "Work & Professional", "description": "Business expenses, professional memberships", "val": 9, "cost_per_month": 100, "estimated": true},
   {"expense": "Family", "description": "Childcare, kids' activities, family expenses", "val": 8, "cost_per_month": 400, "estimated": true},
+  {"expense": "Child Support", "description": "Court-ordered child support and alimony", "val": 9, "cost_per_month": 150, "estimated": true},
   {"expense": "Pets", "description": "Food, veterinary care, grooming, pet supplies", "val": 8, "cost_per_month": 100, "estimated": true},
   {"expense": "Gifts & Donations", "description": "Gifts, charitable contributions, donations", "val": 1, "cost_per_month": 80, "estimated": true},
   {"expense": "Household", "description": "Furniture, appliances, cleaning supplies, home improvement", "val": 4, "cost_per_month": 120, "estimated": true}

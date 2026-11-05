@@ -75,6 +75,26 @@ nav {
 }
 .eyebrow::before { content:''; width:18px; height:1px; background:var(--gold); }
 
+/* ── ADVICE ── */
+.advice-card { border-left:3px solid var(--muted); }
+.advice-headline {
+  font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700;
+  color:var(--navy); line-height:1.25; margin-bottom:0.45rem;
+}
+.advice-detail { font-size:0.88rem; color:var(--muted); line-height:1.65; }
+.advice-note {
+  margin-top:0.7rem; padding-top:0.7rem;
+  border-top:1px solid var(--border);
+  font-size:0.82rem; color:var(--slate); line-height:1.6;
+}
+.advice-note[hidden] { display:none; }
+.advice-card.good { border-left-color:var(--success); }
+.advice-card.good .advice-headline { color:var(--success); }
+.advice-card.mixed { border-left-color:var(--gold); }
+.advice-card.mixed .advice-headline { color:var(--slate); }
+.advice-card.warning { border-left-color:var(--error); }
+.advice-card.warning .advice-headline { color:var(--error); }
+
 /* ── PROFILE ── */
 .profile-name { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:700; color:var(--navy); margin-bottom:0.25rem; }
 .profile-email { font-size:0.82rem; color:var(--muted); margin-bottom:1.5rem; word-break:break-all; }
@@ -275,6 +295,43 @@ footer { background:var(--navy); border-top:1px solid rgba(201,168,76,0.15); pad
 .option-tab.active { color:var(--navy); border-bottom-color:var(--gold); }
 .option-panel { margin-top:0; }
 
+.add-transaction-btn {
+  margin-left:auto; align-self:center;
+  background:var(--navy); color:var(--white);
+  border:none; border-radius:2px; padding:0.55rem 1rem;
+  cursor:pointer; font-family:'Inter',sans-serif;
+  font-size:0.78rem; font-weight:600; letter-spacing:0.04em;
+  transition:background 0.2s;
+}
+.add-transaction-btn:hover { background:var(--slate); }
+
+/* ── ADD TRANSACTION MODAL ── */
+.modal-overlay {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(10,22,40,0.55);
+  display:flex; align-items:center; justify-content:center;
+  padding:1rem;
+}
+.modal-overlay[hidden] { display:none; }
+.modal-card {
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:2px;
+  padding:1.75rem;
+  width:min(620px, 100%);
+  max-height:calc(100vh - 2rem);
+  overflow-y:auto;
+  box-shadow:0 18px 45px rgba(10,22,40,0.35);
+}
+.modal-head { align-items:flex-start; margin-bottom:1.25rem; }
+.modal-close {
+  appearance:none; border:none; background:none; cursor:pointer;
+  font-family:'Inter',sans-serif; font-size:1.4rem; line-height:1;
+  color:var(--muted); padding:0.15rem 0.45rem; border-radius:2px;
+  transition:color 0.2s, background 0.2s;
+}
+.modal-close:hover { color:var(--navy); background:var(--warm); }
+
 #loadStatus { margin:0 0 1.5rem; }
 #loadStatus:not(.visible) { display:none; }
 
@@ -424,11 +481,15 @@ footer { background:var(--navy); border-top:1px solid rgba(201,168,76,0.15); pad
   display:flex; align-items:center; gap:0.9rem; flex-wrap:wrap;
   font-size:0.7rem; color:var(--muted);
 }
+/* display:flex beats the browser's hidden rule, so both legends stayed
+   visible; this restores the hidden attribute's meaning for them. */
+.chart-legend[hidden] { display:none; }
 .chart-legend span { display:inline-flex; align-items:center; gap:0.35rem; }
 .swatch { display:inline-block; width:9px; height:9px; border-radius:1px; }
 .swatch.under { background:var(--success); }
 .swatch.over { background:var(--error); }
 .swatch.budget { background:var(--gold); }
+.swatch.avg { background:var(--slate); }
 
 .chart-holder { width:100%; min-height:190px; }
 .chart-holder svg { display:block; width:100%; height:auto; }
@@ -443,11 +504,26 @@ footer { background:var(--navy); border-top:1px solid rgba(201,168,76,0.15); pad
 .chart-bar { fill:var(--success); transition:opacity 0.2s; }
 .chart-bar.over { fill:var(--error); }
 .chart-bar.empty { fill:var(--border); }
+.chart-bar.total { fill:var(--slate); }
 .chart-bar:hover { opacity:0.75; }
+.chart-zero-line { stroke:var(--muted); stroke-width:1.5; }
 .chart-line {
   fill:none; stroke:var(--gold); stroke-width:2;
   stroke-dasharray:5 4; stroke-linejoin:round;
+  pointer-events:stroke;
 }
+.chart-line.avg {
+  stroke:var(--slate); stroke-width:1.5;
+  stroke-dasharray:2 3;
+}
+/* Yearly-average-spending line: solid so it reads apart from the dashed
+   budget line. */
+.chart-line.total-avg {
+  stroke:var(--navy); stroke-width:1.5;
+  stroke-dasharray:none;
+}
+.swatch.avg-spent { background:var(--navy); }
+.swatch.spent { background:var(--slate); }
 
 .stats-grid {
   display:grid; grid-template-columns:minmax(0, 0.8fr) minmax(0, 1.2fr);

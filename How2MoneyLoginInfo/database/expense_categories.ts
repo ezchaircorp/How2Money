@@ -1,9 +1,10 @@
 // Expense categories.
 //
-// expense_weight.json at the repo root is the source of truth for the 21
-// spending categories and their importance weights. The assessment form asks
-// about 11 broader buckets instead, so this file also holds the mapping
-// between the two, plus the per-bucket breakdown fields the form submits.
+// expense_weight.json at the repo root is the source of truth for the spending
+// categories and their importance weights (1 = mostly unnecessary, 10 = almost
+// unavoidable). The assessment form asks about 11 broader buckets instead, so
+// this file also holds the mapping between the two, plus the per-bucket
+// breakdown fields the form submits.
 
 import fs from 'fs';
 import path from 'path';
@@ -155,6 +156,43 @@ export function bucketWeight(bucket: string): number {
         return sum + (found?.val ?? 0);
     }, 0);
     return Math.round(total / categories.length);
+}
+
+// Which expense_weight.json entry each fine-grained dashboard transaction
+// category measures against. Buckets without detail fields fall through to
+// bucketWeight instead.
+const DETAIL_WEIGHTS: Record<string, string> = {
+    expense_housing_rent: 'Housing',
+    expense_housing_taxes: 'Housing',
+    expense_housing_repairs: 'Housing',
+    expense_housing_utilities: 'Utilities',
+    expense_transportation_gas: 'Gas & Fuel',
+    expense_transportation_transit: 'Transportation',
+    expense_transportation_auto: 'Auto & Vehicle',
+    expense_food_groceries: 'Groceries',
+    expense_food_restaurants: 'Dining & Restaurants',
+    expense_food_fast_food: 'Fast Food & Delivery',
+    expense_subscriptions_entertainment_recurring: 'Subscriptions & Services',
+    expense_subscriptions_entertainment_onetime: 'Entertainment',
+    expense_family_childcare: 'Family',
+    expense_family_kids: 'Family',
+    expense_family_support: 'Child Support',
+    expense_pets_food: 'Pets',
+    expense_pets_vet: 'Pets',
+    expense_pets_grooming: 'Pets',
+};
+
+// Necessity weight (1–10) for one logged transaction. Detail fields look up
+// their specific entry; plain bucket categories use the bucket average.
+// Anything unmapped lands on 5, the middle of the scale.
+export function transactionWeight(category: string, bucket: string): number {
+    const named = DETAIL_WEIGHTS[category];
+    const all = loadExpenseCategories();
+    if (named) {
+        const found = all.find(c => c.expense === named);
+        if (found) return found.val;
+    }
+    return bucketWeight(bucket) || 5;
 }
 
 // Push expense_weight.json into the expense_categories table so the API and

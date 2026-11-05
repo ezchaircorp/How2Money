@@ -31,7 +31,11 @@ const state = {
   monthly: [],
   transactions: [],
   bigPicture: { entries: [], totals: {} },
+  advice: null,
   statsPeriod: 'six',
+  // Which way the spending chart is drawn: 'budget' compares each point with
+  // the budget (bars are +/−), 'total' shows the plain dollar amount spent.
+  chartView: 'budget',
   stats: null,
   statsRequest: 0,
 };
@@ -279,7 +283,7 @@ function chartEmpty(holder, message) {
   holder.appendChild(el('p', 'chart-empty', message));
 }
 
-function renderSpendingChart(series) {
+function renderSpendingChart(series, yearlyAverage = 0) {
   const holder = document.getElementById('spendingChart');
   holder.innerHTML = '';
 
@@ -296,56 +300,189 @@ function renderSpendingChart(series) {
   const bottom = 44;
   const plotW = W - left - right;
   const plotH = H - top - bottom;
-  const plotBottom = top + plotH;
 
-  const maxValue = Math.max(...series.map(point => Math.max(num(point.total), num(point.expected))), 1);
-  const yMax = niceCeil(maxValue * 1.08);
-  const yFor = value => plotBottom - (value / yMax) * plotH;
+  // Two views share one renderer, chosen with the chart-view switch:
+  // - 'budget' (default): bars show the budget position for each point,
+  //   expected − actual. Positive bars sit above the baseline (under budget)
+  //   and negative bars hang below it (over budget). When nothing overspends
+  //   the baseline sits at the bottom edge and the chart reads like a plain
+  //   column chart; otherwise it moves to the middle so the negative side has
+  //   room. No budget line is drawn here: the bars are already budget-relative.
+  // - 'total': bars show the plain dollar amount actually spent per point, no
+  //   budget arithmetic involved. A dashed budget line and the yearly average
+  //   mark the reference points.
+  const yearlyAvg = num(yearlyAverage);
+  const totalView = state.chartView === 'total';
+
+  const remainingFor = point => num(point.expected) - num(point.total);
+  const maxTotal = Math.max(0, ...series.map(point => num(point.total)));
+  const underMax = Math.max(0, ...series.map(point => remainingFor(point)));
+  const overMax = Math.max(0, ...series.map(point => -remainingFor(point)));
+  const hasOverspend = overMax > 0;
+  // The budget line in the total view plots point.expected, so it must fit the
+  // scale too; a period where every point has spending would otherwise push it
+  // off the top.
+  const maxExpected = Math.max(0, ...series.map(point => num(point.expected)));
+
+  let yScale;
+  let zeroY;
+  let swing;
+  let ticks;
+  if (totalView) {
+    yScale = niceCeil(Math.max(maxTotal, maxExpected, yearlyAvg, 1) * 1.08);
+    zeroY = top + plotH;
+    swing = plotH;
+    ticks = [0, 0.25, 0.5, 0.75, 1].map(fraction => fraction * yScale);
+  } else {
+    yScale = niceCeil(Math.max(underMax, overMax, 1) * 1.08);
+    swing = hasOverspend ? plotH / 2 : plotH;
+    zeroY = hasOverspend ? top + plotH / 2 : top + plotH;
+    ticks = hasOverspend
+        ? [1, 0.5, 0, -0.5, -1].map(fraction => fraction * yScale)
+        : [0, 0.25, 0.5, 0.75, 1].map(fraction => fraction * yScale);
+  }
+
+  const yFor = value => zeroY - (value / yScale) * swing;
   const xCenter = index => left + ((index + 0.5) / series.length) * plotW;
 
   const svg = svgNode('svg', {
     viewBox: `0 0 ${W} ${H}`,
     role: 'img',
-    'aria-label': 'Bar chart of spending against the budget for each point in the selected period',
+    'aria-label': totalView
+        ? 'Bar chart of total spending: one bar per point, with a dashed budget line and an average spending line'
+        : 'Bar chart of budget position: bars above the baseline are under budget and bars below it are over budget',
   });
 
-  for (let step = 0; step <= 4; step += 1) {
-    const value = (yMax * step) / 4;
+  const tickLabel = value => (value === 0 ? '$0'
+      : value < 0 ? `-${compactMoney(-value)}` : compactMoney(value));
+
+  for (const value of ticks) {
     const y = yFor(value);
-    svg.appendChild(svgNode('line', { x1: left, y1: y, x2: W - right, y2: y, class: 'chart-grid-line' }));
-    chartText(svg, left - 8, y + 3, compactMoney(value), 'chart-axis-label', 'end');
+    svg.appendChild(svgNode('line', {
+      x1: left, y1: y, x2: W - right, y2: y,
+      class: value === 0 ? 'chart-zero-line' : 'chart-grid-line',
+    }));
+    chartText(svg, left - 8, y + 3, tickLabel(value), 'chart-axis-label', 'end');
   }
 
-  const expectedPoints = series
-      .map((point, index) => `${xCenter(index)},${yFor(num(point.expected))}`)
-      .join(' ');
-  svg.appendChild(svgNode('polyline', { points: expectedPoints, class: 'chart-line' }));
+  // Reference lines behind the bars. The budget line is total-view only: the
+  // budget view already compares each bar against the budget, so a line would
+  // just repeat the axis.
+  if (totalView) {
+    // Budget line: where a bar top would sit with nothing spent that point, so
+    // the gap from the bar top to this line is that point's spending.
+    const budgetValues = series.map(point => num(point.expected));
+    if (budgetValues.some(value => value > 0)) {
+      const budgetLine = svgNode('polyline', {
+        points: series
+            .map((point, index) => `${xCenter(index)},${yFor(num(point.expected))}`)
+            .join(' '),
+        class: 'chart-line',
+      });
+      const title = svgNode('title');
+      const minBudget = Math.min(...budgetValues);
+      const maxBudget = Math.max(...budgetValues);
+      title.textContent = minBudget === maxBudget
+          ? `Budget: ${money.format(maxBudget)} per point`
+          : `Budget varies from ${money.format(minBudget)} to ${money.format(maxBudget)} per point`;
+      budgetLine.appendChild(title);
+      svg.appendChild(budgetLine);
+    }
+
+    // Yearly average spending line: the average amount spent per point so far
+    // this year, computed by the server from the whole year so it does not
+    // swing with the selected period. This chart plots totals directly, so the
+    // average is simply a flat line.
+    if (yearlyAvg > 0) {
+      const avgLine = svgNode('line', {
+        x1: left, y1: yFor(yearlyAvg), x2: W - right, y2: yFor(yearlyAvg),
+        class: 'chart-line total-avg',
+      });
+      const avgTitle = svgNode('title');
+      avgTitle.textContent =
+          `Average: ${money.format(yearlyAvg)} per point · based on this year's spending`;
+      avgLine.appendChild(avgTitle);
+      svg.appendChild(avgLine);
+    }
+  } else {
+    // Average leftover line: the mean bar position across the whole period.
+    // Drawn edge to edge; bars above it spent less than average and bars below
+    // it spent more.
+    const avgRemaining =
+        series.reduce((sum, point) => sum + remainingFor(point), 0) / series.length;
+    const avgLine = svgNode('line', {
+      x1: left, y1: yFor(avgRemaining), x2: W - right, y2: yFor(avgRemaining),
+      class: 'chart-line avg',
+    });
+    const avgTitle = svgNode('title');
+    avgTitle.textContent = avgRemaining >= 0
+        ? `Average: ${money.format(avgRemaining)} left over per point`
+        : `Average: ${money.format(-avgRemaining)} over budget per point`;
+    avgLine.appendChild(avgTitle);
+    svg.appendChild(avgLine);
+  }
 
   const barWidth = Math.max(2, Math.min(34, (plotW / series.length) * 0.62));
   const showValues = series.length <= 12;
 
   series.forEach((point, index) => {
+    if (totalView) {
+      // Total expenditures: one neutral bar per point, straight dollar amount.
+      const total = num(point.total);
+      if (total < 0.005) return;
+
+      const height = Math.max(1, (total / yScale) * swing);
+      const barTop = zeroY - height;
+
+      const bar = svgNode('rect', {
+        x: xCenter(index) - barWidth / 2,
+        y: barTop,
+        width: barWidth,
+        height,
+        rx: 1,
+        class: 'chart-bar total',
+      });
+      const title = svgNode('title');
+      title.textContent = `${point.label}: ${money.format(total)} spent`;
+      bar.appendChild(title);
+      svg.appendChild(bar);
+
+      if (showValues) {
+        chartText(svg, xCenter(index), barTop - 5, compactMoney(total), 'chart-value');
+      }
+      return;
+    }
+
     const total = num(point.total);
     const expected = num(point.expected);
-    const kind = total <= 0 ? 'empty' : total > expected + 0.005 ? 'over' : 'under';
-    const y = yFor(total);
-    const height = Math.max(total > 0 ? 1 : 0, plotBottom - y);
+    const remaining = expected - total;
+
+    if (Math.abs(remaining) < 0.005) return;
+
+    const kind = remaining > 0 ? 'under' : 'over';
+    const height = Math.max(1, (Math.abs(remaining) / yScale) * swing);
+    const barTop = remaining > 0 ? zeroY - height : zeroY;
 
     const bar = svgNode('rect', {
       x: xCenter(index) - barWidth / 2,
-      y: plotBottom - height,
+      y: barTop,
       width: barWidth,
       height,
       rx: 1,
       class: `chart-bar ${kind}`,
     });
     const title = svgNode('title');
-    title.textContent = `${point.label}: ${money.format(total)} spent · ${money.format(expected)} budget`;
+    title.textContent = remaining > 0
+        ? `${point.label}: ${money.format(total)} spent · ${money.format(remaining)} under budget`
+        : `${point.label}: ${money.format(total)} spent · ${money.format(-remaining)} over budget`;
     bar.appendChild(title);
     svg.appendChild(bar);
 
-    if (showValues && total > 0) {
-      chartText(svg, xCenter(index), plotBottom - height - 5, compactMoney(total), 'chart-value');
+    if (showValues) {
+      chartText(svg, xCenter(index),
+          remaining > 0 ? barTop - 5 : zeroY + height + 12,
+          remaining > 0 ? compactMoney(remaining) : `-${compactMoney(-remaining)}`,
+          'chart-value');
     }
   });
 
@@ -529,7 +666,7 @@ function renderStats(data) {
       : `${periodWord(data.period)} view`;
 
   renderStatsSummary(totals);
-  renderSpendingChart(data.series);
+  renderSpendingChart(data.series, num(totals.yearlyAverage));
   renderRecurringChart(totals);
   renderBudgetChart(data.categories);
 }
@@ -558,10 +695,35 @@ async function loadStats() {
 
 function setStatsPeriod(period) {
   state.statsPeriod = ['week', 'month', 'six', 'year'].includes(period) ? period : 'six';
-  document.querySelectorAll('.period-btn').forEach(button => {
+  document.querySelectorAll('.period-btn:not(.chart-view-btn)').forEach(button => {
     button.classList.toggle('active', button.dataset.period === state.statsPeriod);
   });
   loadStats();
+}
+
+// Switch the spending chart between the budget-position view (bars of +/−)
+// and the plain total-expenditures view. Re-renders the chart from the stats
+// already loaded, so no extra request is needed.
+function setChartView(view) {
+  state.chartView = view === 'total' ? 'total' : 'budget';
+  const totalViewState = state.chartView === 'total';
+
+  document.querySelectorAll('.chart-view-btn').forEach(button => {
+    const active = button.dataset.chartView === state.chartView;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+
+  const title = document.getElementById('spendingChartTitle');
+  if (title) title.textContent = totalViewState ? 'Total spending' : 'Spending vs budget';
+  const budgetLegend = document.getElementById('chartLegendBudget');
+  const totalLegend = document.getElementById('chartLegendTotal');
+  if (budgetLegend) budgetLegend.hidden = totalViewState;
+  if (totalLegend) totalLegend.hidden = !totalViewState;
+
+  if (state.stats) {
+    renderSpendingChart(state.stats.series, num(state.stats.totals?.yearlyAverage));
+  }
 }
 
 /* ─────────────────────────────────────────────────
@@ -601,12 +763,41 @@ function renderProfile() {
   document.getElementById('profileCard').hidden = false;
 }
 
+/* ─────────────────────────────────────────────────
+   RENDERING — ADVICE
+──────────────────────────────────────────────── */
+// The advice card sits above the tabs. The server computes it from the
+// profile's recent spending history plus the necessity weights in
+// expense_weight.json, so it survives tab and period switches.
+function renderAdvice() {
+  const card = document.getElementById('adviceCard');
+  const advice = state.advice;
+
+  if (!advice || !advice.headline) {
+    card.hidden = true;
+    return;
+  }
+
+  document.getElementById('adviceHeadline').textContent = advice.headline;
+  document.getElementById('adviceDetail').textContent = advice.detail || '';
+
+  const note = document.getElementById('adviceNote');
+  note.textContent = advice.necessity || '';
+  note.hidden = !advice.necessity;
+
+  card.classList.remove('good', 'mixed', 'warning');
+  if (['good', 'mixed', 'warning'].includes(advice.tone)) {
+    card.classList.add(advice.tone);
+  }
+  card.hidden = false;
+}
+
 function renderTransactions() {
   const list = document.getElementById('transactionsList');
   list.innerHTML = '';
 
   if (state.transactions.length === 0) {
-    list.appendChild(el('li', 'empty-note', 'No transactions yet. Add one in the left panel and it will show up here.'));
+    list.appendChild(el('li', 'empty-note', 'No transactions yet. Use the Add transaction button and they will show up here.'));
     document.getElementById('transactionsCard').hidden = false;
     return;
   }
@@ -982,6 +1173,7 @@ function fallbackPayload() {
         recurring: 0, savings: 0, budget: 0, configured: false,
       },
     },
+    advice: null,
     transactions: [],
   };
 }
@@ -995,8 +1187,10 @@ function applyProfile(data, options = {}) {
   state.monthly = normalizeMonthly(data.monthly, state.buckets, drafts);
   state.bigPicture = data.big_picture || { entries: [], totals: {} };
   state.transactions = Array.isArray(data.transactions) ? data.transactions : [];
+  state.advice = data.advice || null;
 
   renderProfile();
+  renderAdvice();
   renderTransactions();
   renderMonthly();
   renderBigPicture(bigPictureDrafts);
@@ -1014,7 +1208,7 @@ function applyProfile(data, options = {}) {
    TABS
 ───────────────────────────────────────────────── */
 function showPanel(name) {
-  for (const panel of ['stats', 'bigPicture', 'transaction', 'monthly']) {
+  for (const panel of ['stats', 'bigPicture', 'monthly']) {
     const active = panel === name;
     const section = document.getElementById(`${panel}Panel`);
     const tab = document.getElementById(`${panel}Tab`);
@@ -1032,8 +1226,39 @@ document.querySelectorAll('.option-tab').forEach(tab => {
   tab.addEventListener('click', () => showPanel(tab.dataset.panel));
 });
 
-document.querySelectorAll('.period-btn').forEach(button => {
+/* ─────────────────────────────────────────────────
+   ADD TRANSACTION MODAL
+───────────────────────────────────────────────── */
+const transactionModal = document.getElementById('transactionModal');
+
+function openTransactionModal() {
+  transactionModal.hidden = false;
+  updateTransactionHint();
+  document.getElementById('transactionCategory').focus();
+}
+
+function closeTransactionModal() {
+  transactionModal.hidden = true;
+}
+
+document.getElementById('addTransactionBtn').addEventListener('click', openTransactionModal);
+document.getElementById('closeTransactionModal').addEventListener('click', closeTransactionModal);
+
+// A click on the dark backdrop (not on the card itself) dismisses the modal.
+transactionModal.addEventListener('mousedown', (event) => {
+  if (event.target === transactionModal) closeTransactionModal();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !transactionModal.hidden) closeTransactionModal();
+});
+
+document.querySelectorAll('.period-btn:not(.chart-view-btn)').forEach(button => {
   button.addEventListener('click', () => setStatsPeriod(button.dataset.period));
+});
+
+document.querySelectorAll('.chart-view-btn').forEach(button => {
+  button.addEventListener('click', () => setChartView(button.dataset.chartView));
 });
 
 /* ─────────────────────────────────────────────────

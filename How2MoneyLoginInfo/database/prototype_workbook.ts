@@ -23,6 +23,7 @@ import fs from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
+import { transactionWeight } from './expense_categories';
 
 type Row = Record<string, unknown>;
 type Frequency = 'monthly' | 'yearly' | 'weekly';
@@ -111,6 +112,7 @@ const toNumber = (value: unknown) => {
 };
 const roundCents = (value: number) => Math.round(value * 100) / 100;
 const moneyText = (value: number) => value.toFixed(2);
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const isFrequency = (value: unknown): value is Frequency =>
     value === 'monthly' || value === 'yearly' || value === 'weekly';
 const asFrequency = (value: unknown): Frequency => (isFrequency(value) ? value : 'monthly');
@@ -134,6 +136,158 @@ function isRealDay(value: unknown): value is string {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
     const date = new Date(`${value}T00:00:00Z`);
     return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+// How many chart points sit between two YYYY-MM-DD days, inclusive. Monthly
+// points for the 6-month and year views, daily points for week and month.
+// Gaps in the middle still count: a month (or day) with no spending still
+// spent $0, it is not missing history.
+function historyPoints(firstDay: string, lastDay: string, period: string): number {
+    const parts = (day: string) => day.slice(0, 10).split('-').map(Number);
+    const [fromY, fromM, fromD] = parts(firstDay);
+    const [toY, toM, toD] = parts(lastDay);
+    if (!fromY || !fromM || !fromD || !toY || !toM || !toD) return 1;
+
+    if (period === 'week' || period === 'month') {
+        const fromUtc = Date.UTC(fromY, fromM - 1, fromD);
+        const toUtc = Date.UTC(toY, toM - 1, toD);
+        return Math.max(1, Math.round((toUtc - fromUtc) / 86_400_000) + 1);
+    }
+
+    return Math.max(1, (toY * 12 + toM) - (fromY * 12 + fromM) + 1);
+}
+
+type AdviceTone = 'good' | 'mixed' | 'warning' | 'none';
+
+type Advice = {
+    tone: AdviceTone;
+    headline: string;
+    detail: string;
+    // Follow-on read from the expense_weight.json importance weights
+    // (1 = mostly unnecessary, 10 = almost unavoidable). Empty when no
+    // spending history exists to measure.
+    necessity: string;
+};
+
+// How many populated months of history the advice rules look at.
+const ADVICE_MONTHS = 6;
+
+// Turns the weighted necessity score into the sentence that sits under the
+// main advice. Weights come from expense_weight.json: 10 is nearly
+// unavoidable, 1 is mostly optional, and anything rated 3 or lower is framed
+// as the easiest place to trim first.
+function necessityLine(spentTotal: number, weightedSum: number, lowTotal: number, months: number): string {
+    if (spentTotal <= 0 || months < 1) return '';
+
+    const average = weightedSum / spentTotal;
+    const base =
+        `Scoring every purchase with the necessity weights from expense_weight.json ` +
+        `(1 = mostly unnecessary, 10 = almost unavoidable), your recent spending averages ` +
+        `${average.toFixed(1)} out of 10.`;
+
+    const lowPerMonth = roundCents(lowTotal / months);
+    const lowShare = Math.round((lowTotal / spentTotal) * 100);
+    const lowBit = lowPerMonth >= 1
+        ? ` About ${lowShare}% of it — ${usd.format(lowPerMonth)} a month — rates 3 or lower, which is both the easiest and the first place to trim when cash is short.`
+        : ' Almost none of it sits in the 1–3 range, so savings are easier to find in the essentials plan itself than in small cuts.';
+
+    const tag = average < 3.5
+        ? ' An average that low means a lot of this spending is optional by design.'
+        : average > 7
+            ? ' An average that high means the big stuff is essentials, so start with the small rated-3-or-lower slice.'
+            : '';
+
+    return base + lowBit + tag;
+}
+
+// Hard-coded advice rules over the recent spending history. Only months with
+// at least one transaction count: a month without purchases is missing
+// history, not a month of perfect under-budget discipline.
+function advicePayload(transactions: Row[], monthlyBudget: number): Advice {
+    if (transactions.length === 0) {
+        return {
+            tone: 'none',
+            headline: 'No spending history yet',
+            detail: 'Log a few transactions and advice will start building from your history.',
+            necessity: '',
+        };
+    }
+
+    const byMonth = new Map<string, number>();
+    for (const row of transactions) {
+        const key = dayText(row.spent_on).slice(0, 7);
+        byMonth.set(key, (byMonth.get(key) ?? 0) + toNumber(row.amount));
+    }
+    const recent = [...byMonth.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-ADVICE_MONTHS);
+    const recentKeys = recent.map(([key]) => key);
+    const recentRows = transactions
+        .filter(row => recentKeys.includes(dayText(row.spent_on).slice(0, 7)));
+
+    // Necessity read: every purchase is scored with the expense_weight.json
+    // weight of its category, and the amounts behind the low ratings get
+    // called out as the easiest trims. Works with or without a budget.
+    let weightedSum = 0;
+    let spentTotal = 0;
+    let lowTotal = 0;
+    for (const row of recentRows) {
+        const amount = toNumber(row.amount);
+        const weight = transactionWeight(String(row.category ?? ''), String(row.bucket ?? ''));
+        weightedSum += amount * weight;
+        spentTotal += amount;
+        if (weight <= 3) lowTotal += amount;
+    }
+    const necessity = necessityLine(spentTotal, weightedSum, lowTotal, recent.length);
+
+    if (monthlyBudget <= 0) {
+        return {
+            tone: 'none',
+            headline: 'No budget to compare with yet',
+            detail: 'Advice compares your spending with a budget. Set one up in the Big Picture planner (or set expected amounts in Monthly setup) to unlock it.',
+            necessity,
+        };
+    }
+
+    if (recent.length < 2) {
+        return {
+            tone: 'none',
+            headline: 'Not enough history yet',
+            detail: `There is only one month of spending so far. Keep logging purchases — advice gets sharper once two or more months can be compared with the ${usd.format(monthlyBudget)} budget.`,
+            necessity,
+        };
+    }
+
+    const over = recent
+        .filter(([, total]) => total > monthlyBudget)
+        .length;
+    const under = recent.length - over;
+    const average = recent.reduce((sum, [, total]) => sum + total, 0) / recent.length;
+
+    if (over === 0) {
+        return {
+            tone: 'good',
+            headline: "You're doing great and could save more",
+            detail: `Every one of the last ${recent.length} months landed under the ${usd.format(monthlyBudget)} budget, averaging ${usd.format(average)} a month. Consider moving the difference into savings or setting a tighter target.`,
+            necessity,
+        };
+    }
+
+    if (over * 3 >= recent.length * 2) {
+        return {
+            tone: 'warning',
+            headline: 'Consistently breaking the budget',
+            detail: `You went over budget in ${over} of the last ${recent.length} months, averaging ${usd.format(average)} against the ${usd.format(monthlyBudget)} budget. You should consider cutting back on spending or rethinking your savings plan.`,
+            necessity,
+        };
+    }
+
+    return {
+        tone: 'mixed',
+        headline: 'Spending is close to the budget',
+        detail: `The last ${recent.length} months split ${under} under budget and ${over} over, averaging ${usd.format(average)} against the ${usd.format(monthlyBudget)} budget. Trimming your biggest categories on the over months would even this out.`,
+        necessity,
+    };
 }
 
 function parseDetail(value: unknown) {
@@ -272,8 +426,7 @@ const rowsFor = (rows: Row[], profile: Row | undefined) =>
 
 /* ── Building the responses dashboard.js expects ── */
 
-function bigPictureTotals(entries: Row[]) {
-    const monthly = (category: string) => {
+function bigPictureTotals(entries: Row[]) {    const monthly = (category: string) => {
         const entry = entries.find(row => row.category === category);
         return entry ? perMonth(entry) : 0;
     };
@@ -293,6 +446,14 @@ function bigPictureTotals(entries: Row[]) {
         budget: roundCents(income - recurring - savings),
         configured: entries.some(row => toNumber(row.amount) > 0),
     };
+}
+
+// Big Picture budget while the planner is configured; otherwise the monthly
+// setup total stands in. Feeds the stats points, the advice rules, and the
+// category scaling.
+function monthlyBudgetFor(expenses: Row[], totals: ReturnType<typeof bigPictureTotals>) {
+    const setupMonthly = expenses.reduce((sum, row) => sum + perMonth(row), 0);
+    return totals.configured ? Math.max(0, totals.budget) : setupMonthly;
 }
 
 function profilePayload(store: Store) {
@@ -325,6 +486,9 @@ function profilePayload(store: Store) {
             toNumber(b.transaction_id) - toNumber(a.transaction_id))
         .slice(0, RECENT_TRANSACTIONS);
 
+    const bigTotals = bigPictureTotals(bigPicture);
+    const monthlyBudget = monthlyBudgetFor(expenses, bigTotals);
+
     return {
         profile: {
             key: 'prototype',
@@ -337,13 +501,14 @@ function profilePayload(store: Store) {
         },
         buckets: BUCKETS,
         monthly,
+        advice: advicePayload(transactions, monthlyBudget),
         big_picture: {
             entries: bigPicture.map(row => ({
                 category: row.category,
                 amount: toNumber(row.amount),
                 frequency: asFrequency(row.frequency),
             })),
-            totals: bigPictureTotals(bigPicture),
+            totals: bigTotals,
         },
         transactions: recent.map(row => ({
             id: row.transaction_id,
@@ -364,8 +529,8 @@ function statsPayload(store: Store, requested: string | null) {
     const expenses = rowsFor(store.tables.expenses, profile);
     const bigPicture = rowsFor(store.tables.bigPicture, profile);
     const totals = bigPictureTotals(bigPicture);
+    const monthlyBudget = monthlyBudgetFor(expenses, totals);
     const setupMonthly = expenses.reduce((sum, row) => sum + perMonth(row), 0);
-    const monthlyBudget = totals.configured ? Math.max(0, totals.budget) : setupMonthly;
 
     const today = new Date();
     const year = today.getFullYear();
@@ -433,7 +598,8 @@ function statsPayload(store: Store, requested: string | null) {
 
     const start = isoDay(from);
     const end = isoDay(to);
-    const inPeriod = rowsFor(store.tables.transactions, profile).filter(row => {
+    const allTransactions = rowsFor(store.tables.transactions, profile);
+    const inPeriod = allTransactions.filter(row => {
         const day = dayText(row.spent_on);
         return day >= start && day <= end;
     });
@@ -442,6 +608,21 @@ function statsPayload(store: Store, requested: string | null) {
     const actual = sum(inPeriod);
     const recurring = sum(inPeriod.filter(row => isTrue(row.recurring)));
     const scale = setupMonthly > 0 ? periodBudget / setupMonthly : 0;
+
+    // Average spending over the recorded history of the current year, so the
+    // average line is one stable number no matter which period is selected.
+    // The denominator runs from the first populated day/month of that history
+    // to the nearest populated one, not the calendar: someone who starts
+    // tracking mid-year is not diluted by the empty months before their first
+    // transaction, and the current month counts once anything is logged in it.
+    const yearStartDay = isoDay(new Date(year, 0, 1));
+    const yearRows = allTransactions.filter(row => dayText(row.spent_on) >= yearStartDay);
+    const yearDays = yearRows.map(row => dayText(row.spent_on)).sort();
+    const firstDay = yearDays[0];
+    const lastDay = yearDays[yearDays.length - 1];
+    const yearlyAverage = firstDay && lastDay
+        ? roundCents(sum(yearRows) / historyPoints(firstDay, lastDay, period))
+        : 0;
 
     return {
         period,
@@ -475,6 +656,7 @@ function statsPayload(store: Store, requested: string | null) {
             recurring: roundCents(recurring),
             oneTime: roundCents(actual - recurring),
             recurringShare: actual > 0 ? recurring / actual : 0,
+            yearlyAverage,
         },
     };
 }
@@ -643,16 +825,21 @@ export async function handlePrototypeRequest(req: IncomingMessage, res: ServerRe
         } else if (req.method === 'GET' && url.pathname === '/api/prototype/stats') {
             const period = url.searchParams.get('period');
             sendJson(res, 200, await inOrder(async () => statsPayload(await load(), period)));
-        } else if (req.method === 'POST' && SAVES[url.pathname]) {
-            const body = await readBody(req);
+        } else if (req.method === 'POST') {
+            // SAVES is a plain object, so an unknown path indexes to undefined.
             const change = SAVES[url.pathname];
-            const payload = await inOrder(async () => {
-                const store = await load();
-                change(store, body);
-                await save(store);
-                return profilePayload(store);
-            });
-            sendJson(res, 200, payload);
+            if (!change) {
+                sendJson(res, 404, { error: 'Not found.' });
+            } else {
+                const body = await readBody(req);
+                const payload = await inOrder(async () => {
+                    const store = await load();
+                    change(store, body);
+                    await save(store);
+                    return profilePayload(store);
+                });
+                sendJson(res, 200, payload);
+            }
         } else {
             sendJson(res, 404, { error: 'Not found.' });
         }

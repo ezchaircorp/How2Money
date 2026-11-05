@@ -24,7 +24,6 @@
   <p class="breadcrumb"><a href="index.html">Home</a> / Dashboard</p>
   <h1>Your <em>dashboard</em></h1>
   <p>Log one purchase at a time and compare it with what you expected to spend each month. Every entry updates a shared prototype profile, so you can watch the budget take shape.</p>
-  <p class="mode-note">Prototype mode — no account needed. Sign-in and personal profiles are coming later.</p>
 </div>
 
 <div class="dash-wrap">
@@ -41,6 +40,14 @@
     <!-- THE DASHBOARD ITSELF -->
     <div id="dashContent" hidden>
 
+      <!-- ADVICE (computed from the profile's recent history) -->
+      <section class="card advice-card" id="adviceCard" hidden>
+        <span class="eyebrow">Advice</span>
+        <h2 class="advice-headline" id="adviceHeadline"></h2>
+        <p class="advice-detail" id="adviceDetail"></p>
+        <p class="advice-note" id="adviceNote" hidden></p>
+      </section>
+
       <div class="status-msg" id="loadStatus" role="status"></div>
 
       <div class="option-tabs" role="tablist" aria-label="Dashboard mode">
@@ -50,15 +57,15 @@
         </button>
         <button type="button" class="option-tab" id="bigPictureTab" role="tab"
                 aria-selected="false" aria-controls="bigPicturePanel" data-panel="bigPicture">
-          Big Picture
-        </button>
-        <button type="button" class="option-tab" id="transactionTab" role="tab"
-                aria-selected="false" aria-controls="transactionPanel" data-panel="transaction">
-          Add one transaction
+          Big picture
         </button>
         <button type="button" class="option-tab" id="monthlyTab" role="tab"
                 aria-selected="false" aria-controls="monthlyPanel" data-panel="monthly">
           Monthly setup
+        </button>
+        <button type="button" class="add-transaction-btn" id="addTransactionBtn"
+                aria-haspopup="dialog" aria-controls="transactionModal">
+          Add transaction
         </button>
       </div>
 
@@ -82,11 +89,22 @@
 
         <div class="chart-block">
           <div class="chart-head">
-            <h3>Total spending</h3>
-            <div class="chart-legend">
+            <div>
+              <h3 id="spendingChartTitle">Spending vs budget</h3>
+              <div class="period-switch chart-view-switch" role="group" aria-label="Chart view">
+                <button type="button" class="period-btn chart-view-btn active" data-chart-view="budget" aria-pressed="true">Vs budget</button>
+                <button type="button" class="period-btn chart-view-btn" data-chart-view="total" aria-pressed="false">Total spent</button>
+              </div>
+            </div>
+            <div class="chart-legend" id="chartLegendBudget">
               <span><i class="swatch under"></i> Under budget</span>
               <span><i class="swatch over"></i> Over budget</span>
-              <span><i class="swatch budget"></i> Budget pace</span>
+              <span><i class="swatch avg"></i> Avg left over</span>
+            </div>
+            <div class="chart-legend" id="chartLegendTotal" hidden>
+              <span><i class="swatch spent"></i> Spent</span>
+              <span><i class="swatch budget"></i> Budget</span>
+              <span><i class="swatch avg-spent"></i> Yearly average</span>
             </div>
           </div>
           <div class="chart-holder" id="spendingChart"></div>
@@ -234,52 +252,6 @@
         </form>
       </section>
 
-      <!-- ADD ONE TRANSACTION -->
-      <section class="card option-panel" id="transactionPanel" role="tabpanel" aria-labelledby="transactionTab" hidden>
-        <div class="card-head">
-          <div>
-            <span class="eyebrow">Add one transaction</span>
-            <h2>Log a single purchase</h2>
-          </div>
-        </div>
-        <p class="form-hint">Record one expense at a time &mdash; for example $15.65 on fast food or $20.45 on shopping. Transactions roll into the actual monthly totals.</p>
-
-        <form id="transactionForm" novalidate>
-          <div class="form-row transaction-row">
-            <div class="form-field">
-              <label for="transactionDate">Date</label>
-              <input type="date" id="transactionDate" name="spentOn" />
-            </div>
-            <div class="form-field">
-              <label for="transactionCategory">Category</label>
-              <select id="transactionCategory" name="category"></select>
-            </div>
-            <div class="form-field amount-field">
-              <label for="transactionAmount">Amount</label>
-              <input type="number" id="transactionAmount" name="amount" min="0" step="0.01"
-                     inputmode="decimal" placeholder="0.00" />
-            </div>
-          </div>
-
-          <div class="form-field note-field">
-            <label for="transactionNote">Note <span class="optional">optional</span></label>
-            <input type="text" id="transactionNote" name="note" maxlength="200"
-                   placeholder="e.g. lunch with friends" />
-          </div>
-
-          <label class="check-field" for="transactionRecurring">
-            <input type="checkbox" id="transactionRecurring" name="recurring" />
-            <span>Recurring expense <span class="optional">rent, subscriptions, bills</span></span>
-          </label>
-
-          <div class="add-foot">
-            <p class="add-hint" id="transactionHint"></p>
-            <button type="submit" class="btn-submit" id="transactionBtn">Add transaction</button>
-          </div>
-          <div class="status-msg" id="transactionStatus"></div>
-        </form>
-      </section>
-
       <!-- MONTHLY SETUP -->
       <section class="card option-panel" id="monthlyPanel" role="tabpanel" aria-labelledby="monthlyTab" hidden>
         <div class="card-head">
@@ -339,6 +311,9 @@
       <ul class="history-list" id="transactionsList"></ul>
     </section>
 
+    <!-- DEV INFO (moved down from the page header) -->
+    <p class="mode-note">Prototype mode — no account needed. Sign-in and personal profiles are coming later.</p>
+
   </div>
 </div>
 
@@ -346,6 +321,55 @@
   <div class="footer-logo">How<span>2</span>Money</div>
   <p class="footer-copy">© 2026 How2Money. All rights reserved.</p>
 </footer>
+
+<!-- ADD TRANSACTION MODAL -->
+<div class="modal-overlay" id="transactionModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="transactionModalTitle">
+    <div class="card-head modal-head">
+      <div>
+        <span class="eyebrow">Add one transaction</span>
+        <h2 id="transactionModalTitle">Log a single purchase</h2>
+      </div>
+      <button type="button" class="modal-close" id="closeTransactionModal" aria-label="Close">&times;</button>
+    </div>
+    <p class="form-hint">Record one expense at a time &mdash; for example $15.65 on fast food or $20.45 on shopping. Transactions roll into the actual monthly totals.</p>
+
+    <form id="transactionForm" novalidate>
+      <div class="form-row transaction-row">
+        <div class="form-field">
+          <label for="transactionDate">Date</label>
+          <input type="date" id="transactionDate" name="spentOn" />
+        </div>
+        <div class="form-field">
+          <label for="transactionCategory">Category</label>
+          <select id="transactionCategory" name="category"></select>
+        </div>
+        <div class="form-field amount-field">
+          <label for="transactionAmount">Amount</label>
+          <input type="number" id="transactionAmount" name="amount" min="0" step="0.01"
+                 inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+
+      <div class="form-field note-field">
+        <label for="transactionNote">Note <span class="optional">optional</span></label>
+        <input type="text" id="transactionNote" name="note" maxlength="200"
+               placeholder="e.g. lunch with friends" />
+      </div>
+
+      <label class="check-field" for="transactionRecurring">
+        <input type="checkbox" id="transactionRecurring" name="recurring" />
+        <span>Recurring expense <span class="optional">rent, subscriptions, bills</span></span>
+      </label>
+
+      <div class="add-foot">
+        <p class="add-hint" id="transactionHint"></p>
+        <button type="submit" class="btn-submit" id="transactionBtn">Add transaction</button>
+      </div>
+      <div class="status-msg" id="transactionStatus"></div>
+    </form>
+  </div>
+</div>
 
 <script src="dashboard.js"></script>
 
