@@ -28,15 +28,17 @@ fi
 
 cd "$APP"
 
-# Fresh clones ship an incomplete node_modules: the Python-template .gitignore
-# excluded typescript/lib, tsx/dist and exceljs/lib, so those packages are
-# tracked without the files the server actually loads. Rerun npm install
-# whenever any of the required pieces are missing.
+# node_modules is not tracked: a fresh clone has none, and a copy from
+# another OS can carry native binaries for the wrong platform (e.g. a
+# committed Windows esbuild on Linux). npm install repairs both, so probe
+# for the required files and for esbuild's native binary directly —
+# transformSync actually touches the binary, unlike a file-exists check.
 if [[ ! -f node_modules/typescript/bin/tsc \
    || ! -f node_modules/tsx/dist/cli.mjs \
    || ! -f node_modules/exceljs/lib/exceljs.nodejs.js \
-   || ! -f node_modules/exceljs/package.json ]]; then
-  echo "node_modules is incomplete — installing dependencies…"
+   || ! -f node_modules/exceljs/package.json ]] \
+   || ! node -e "require('esbuild').transformSync('1')" >/dev/null 2>&1; then
+  echo "node_modules is missing, incomplete, or built for another platform — installing dependencies…"
   npm install
 fi
 
