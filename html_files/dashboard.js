@@ -32,7 +32,7 @@ const state = {
   transactions: [],
   bigPicture: { entries: [], totals: {} },
   advice: null,
-  statsPeriod: 'six',
+  statsPeriod: 'month',
   // Which way the spending chart is drawn: 'budget' compares each point with
   // the budget (bars are +/−), 'total' shows the plain dollar amount spent.
   chartView: 'budget',
@@ -694,7 +694,7 @@ async function loadStats() {
 }
 
 function setStatsPeriod(period) {
-  state.statsPeriod = ['week', 'month', 'six', 'year'].includes(period) ? period : 'six';
+  state.statsPeriod = ['week', 'month', 'six', 'year'].includes(period) ? period : 'month';
   document.querySelectorAll('.period-btn:not(.chart-view-btn)').forEach(button => {
     button.classList.toggle('active', button.dataset.period === state.statsPeriod);
   });

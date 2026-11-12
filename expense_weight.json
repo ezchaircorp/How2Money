@@ -1,6 +1,6 @@
 [
   {"expense": "Housing", "description": "Rent, mortgage, property-related costs", "val": 10, "cost_per_month": 1400, "estimated": false},
-  {"expense": "Utilities", "description": "Electricity, water, gas, internet, trash", "val": 10, "cost_per_month": 600, "estimated": false},
+  {"expense": "Utilities", "description": "Electricity, water, gas, internet, trash", "val": 10, "cost_per_month": 250, "estimated": false},
   {"expense": "Gas & Fuel", "description": "Gas stations, EV charging, fuel", "val": 8, "cost_per_month": 200, "estimated": true},
   {"expense": "Groceries", "description": "Supermarkets, household food, basic supplies", "val": 10, "cost_per_month": 500, "estimated": true},
   {"expense": "Dining & Restaurants", "description": "Restaurants, takeout, delivery, cafés", "val": 4, "cost_per_month": 250, "estimated": true},

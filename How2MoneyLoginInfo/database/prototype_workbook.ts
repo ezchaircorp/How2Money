@@ -139,19 +139,27 @@ function isRealDay(value: unknown): value is string {
 }
 
 // How many chart points sit between two YYYY-MM-DD days, inclusive. Monthly
-// points for the 6-month and year views, daily points for week and month.
-// Gaps in the middle still count: a month (or day) with no spending still
-// spent $0, it is not missing history.
+// points for the 6-month and year views, daily points for the week view, and
+// weekly points for the month view. Gaps in the middle still count: a month
+// (or day) with no spending still spent $0, it is not missing history.
 function historyPoints(firstDay: string, lastDay: string, period: string): number {
     const parts = (day: string) => day.slice(0, 10).split('-').map(Number);
     const [fromY, fromM, fromD] = parts(firstDay);
     const [toY, toM, toD] = parts(lastDay);
     if (!fromY || !fromM || !fromD || !toY || !toM || !toD) return 1;
 
-    if (period === 'week' || period === 'month') {
+    if (period === 'week') {
         const fromUtc = Date.UTC(fromY, fromM - 1, fromD);
         const toUtc = Date.UTC(toY, toM - 1, toD);
         return Math.max(1, Math.round((toUtc - fromUtc) / 86_400_000) + 1);
+    }
+
+    if (period === 'month') {
+        // Month points are weeks, so the average per point is per week.
+        const fromUtc = Date.UTC(fromY, fromM - 1, fromD);
+        const toUtc = Date.UTC(toY, toM - 1, toD);
+        const daysSpan = Math.round((toUtc - fromUtc) / 86_400_000) + 1;
+        return Math.max(1, Math.ceil(daysSpan / 7));
     }
 
     return Math.max(1, (toY * 12 + toM) - (fromY * 12 + fromM) + 1);
@@ -562,9 +570,29 @@ function statsPayload(store: Store, requested: string | null) {
         to = new Date(year, month + 1, 0);
         label = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         periodBudget = monthlyBudget;
-        for (let day = 1; day <= to.getDate(); day += 1) {
-            const date = isoDay(new Date(year, month, day));
-            points.push({ label: String(day), from: date, to: date, expected: periodBudget / to.getDate() });
+        // One bar per week instead of one per day. Weeks run Monday–Sunday
+        // like the week view; the first and last weeks are clipped to the
+        // month so the bars tile the month exactly. Each week's expected
+        // slice of the budget is proportional to how many of the month's
+        // days it covers.
+        const daysInMonth = to.getDate();
+        let weekStart = 1;
+        while (weekStart <= daysInMonth) {
+            const startDate = new Date(year, month, weekStart);
+            const offset = (startDate.getDay() + 6) % 7; // days since Monday
+            const weekEnd = Math.min(daysInMonth, weekStart + 6 - offset);
+            const endDate = new Date(year, month, weekEnd);
+            const weekDays = weekEnd - weekStart + 1;
+            const endLabel = startDate.getDate() === endDate.getDate()
+                ? ''
+                : `–${endDate.getDate()}`;
+            points.push({
+                label: `${shortMonth(startDate)} ${startDate.getDate()}${endLabel}`,
+                from: isoDay(startDate),
+                to: isoDay(endDate),
+                expected: (periodBudget * weekDays) / daysInMonth,
+            });
+            weekStart = weekEnd + 1;
         }
     } else if (period === 'six') {
         from = new Date(year, month - 5, 1);
