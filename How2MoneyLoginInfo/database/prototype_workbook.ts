@@ -24,6 +24,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { transactionWeight } from './expense_categories';
+import { syncDemoProfileToMongo } from './db_mongo_store';
 
 type Row = Record<string, unknown>;
 type Frequency = 'monthly' | 'yearly' | 'weekly';
@@ -864,6 +865,10 @@ export async function handlePrototypeRequest(req: IncomingMessage, res: ServerRe
                     const store = await load();
                     change(store, body);
                     await save(store);
+                    // Mirror the change into Mongo so the demo account's data
+                    // shows up in the database. Best-effort: a Mongo failure
+                    // is logged inside and the dashboard keeps working.
+                    await syncDemoProfileToMongo();
                     return profilePayload(store);
                 });
                 sendJson(res, 200, payload);

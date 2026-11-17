@@ -10,8 +10,8 @@
 //            GET  /api/me                 -> the signed-in user
 //            GET  /api/profile            -> the assessment that belongs to them
 //            POST /api/assessment-submit  (JSON)
-//            GET  /api/spend?period=week|month
-//            POST /api/spend
+//            GET  /api/spend?period=week|month      (Mongo-backed)
+//            POST /api/spend                        (Mongo-backed)
 //            GET  /api/prototype/profile        (no login, shared profile)
 //            GET  /api/prototype/stats          (no login, week/month/year charts)
 //            POST /api/prototype/transactions   (no login, add one purchase)
@@ -53,8 +53,15 @@ import {
     monthlyMultiplier,
     syncExpenseCategories,
 } from './database/expense_categories';
-import { listSpendEntries, listSpendEntriesForWindow, nextPeriodWindow, saveSpendEntries } from './database/db_spend';
+import { nextPeriodWindow } from './database/db_spend';
 import type { Period, SpendEntryInput } from './database/db_spend';
+import {
+    initMongoUserStore,
+    listMongoSpendEntries,
+    listMongoSpendEntriesForWindow,
+    saveMongoSpendEntries,
+    syncDemoProfileToMongo,
+} from './database/db_mongo_store';
 import {
     BIG_PICTURE_CATEGORIES,
     addProfileTransaction,
@@ -812,8 +819,8 @@ app.get('/api/spend', async (req, res) => {
 
         const period = toPeriod(req.query.period);
         const window = nextPeriodWindow(period);
-        const entries = await listSpendEntriesForWindow(user.id, period);
-        const history = await listSpendEntries(user.id);
+        const entries = await listMongoSpendEntriesForWindow(user.id, period);
+        const history = await listMongoSpendEntries(user.id);
 
         return res.json({
             ok: true,
@@ -863,15 +870,29 @@ app.post('/api/spend', async (req, res) => {
         }
 
         const window = nextPeriodWindow(period);
-        const saved = await saveSpendEntries(user.id, period, window, entries);
-
-        return res.json({
-            ok: true,
-            saved,
-            period,
-            period_start: window.start,
-            period_end: window.end,
-        });
+        try {
+            const saved = await saveMongoSpendEntries(user.id, period, window, entries);
+            return res.json({
+                ok: true,
+                saved,
+                period,
+                period_start: window.start,
+                period_end: window.end,
+            });
+        } catch (err) {
+            // Mongo is the only store for spend entries, but a failed save
+            // still answers politely instead of erroring the page — the
+            // warning flag tells anyone watching the payload.
+            console.error('spend save failed:', err);
+            return res.json({
+                ok: true,
+                saved: 0,
+                period,
+                period_start: window.start,
+                period_end: window.end,
+                warning: 'Spending could not be saved right now. Try again shortly.',
+            });
+        }
     } catch (err) {
         console.error('spend save failed:', err);
         return res.status(500).json({ ok: false, error: 'Could not save your spending.' });
@@ -916,6 +937,21 @@ async function start(): Promise<void> {
             err
         );
     }
+
+    // Mongo: seeds the demo account and its indexes. Failure never blocks the
+    // server — the dashboard writes just log that the Mongo sync was skipped,
+    // and a later attempt reconnects (getDb retries after a failed connect).
+    initMongoUserStore()
+        .then(() => {
+            console.log('Mongo user store ready — demo account and spend entries live in MongoDB.');
+        })
+        .catch((err) => {
+            console.error(
+                'Mongo user store setup failed — dashboard changes will not be saved to MongoDB ' +
+                'until it is reachable. Check database/mongo_connection_info.env.',
+                err
+            );
+        });
 }
 
 start().catch((err) => {
