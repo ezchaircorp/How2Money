@@ -12,10 +12,34 @@ dotenv.config({ path: path.resolve(__dirname, 'mongo_connection_info.env') });
 
 // MONGO_URI wins; the repo-root .env's database_link is the fallback the owner
 // filled in. Both casings are accepted.
-const MONGO_URI =
+const RAW_URI =
     process.env.MONGO_URI ||
     process.env.database_link ||
     process.env.DATABASE_LINK;
+
+// The password embedded in database_link went stale, while the separate
+// database_password key stayed correct. When a credential pair is provided
+// explicitly, use it instead of whatever userinfo the link carries. Encoding
+// both values also keeps passwords with @ : / ? # safe in the URI.
+const URI_USER =
+    process.env.MONGO_USER ||
+    process.env.database_user_name ||
+    process.env.DATABASE_USER_NAME;
+const URI_PASS =
+    process.env.MONGO_PASS ||
+    process.env.database_password ||
+    process.env.DATABASE_PASSWORD;
+
+function withCredentials(uri: string, user?: string, pass?: string): string {
+    if (!user || !pass) return uri;
+    // Swap the userinfo (or insert it when the link has none) after the scheme.
+    const match = /^(mongodb(?:\+srv)?:\/\/)(?:[^@/]+@)?(.*)$/.exec(uri);
+    if (!match) return uri;
+    const [, scheme = '', rest = ''] = match;
+    return `${scheme}${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${rest}`;
+}
+
+const MONGO_URI = RAW_URI ? withCredentials(RAW_URI, URI_USER, URI_PASS) : undefined;
 // Optional override; when unset the driver uses the database name embedded in the URI.
 const DB_NAME = process.env.MONGO_DB_NAME;
 
