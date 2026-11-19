@@ -40,6 +40,13 @@
     <!-- THE DASHBOARD ITSELF -->
     <div id="dashContent" hidden>
 
+      <!-- DEMO MODE (MongoDB unreachable; data lives in a local workbook) -->
+      <div class="demo-banner" id="demoBanner" role="status" hidden>
+        <strong>Demo mode.</strong>
+        The database is unreachable, so this dashboard is reading and saving the local workbook.
+        Changes here are not written to MongoDB.
+      </div>
+
       <!-- ADVICE (computed from the profile's recent history) -->
       <section class="card advice-card" id="adviceCard" hidden>
         <span class="eyebrow">Advice</span>
@@ -133,7 +140,7 @@
           </div>
           <p class="hint" id="bigPictureHint"></p>
         </div>
-        <p class="form-hint">Start with the money coming in. Yearly amounts are divided by 12, then debt, schooling, insurance, and savings come out of income. The result is the budget used on the Stats tab.</p>
+        <p class="form-hint">Start with the money coming in. Yearly amounts are divided by 12, then debt, schooling, insurance, and savings come out of income. Insurance is split into health, home, auto, and other. The result is the budget used on the Stats tab.</p>
 
         <form id="bigPictureForm" novalidate>
           <div class="big-picture-list">
@@ -188,19 +195,75 @@
             </div>
 
             <div class="big-picture-row">
-              <label class="big-picture-label" for="bigPictureInsurance">Insurance</label>
+              <label class="big-picture-label" for="bigPictureInsuranceHealth">
+                Health insurance
+              </label>
               <div class="big-picture-input">
                 <span class="money-prefix" aria-hidden="true">$</span>
-                <input type="number" id="bigPictureInsurance" data-big-category="insurance"
+                <input type="number" id="bigPictureInsuranceHealth" data-big-category="insurance_health"
                        min="0" step="0.01" inputmode="decimal" placeholder="0.00"
-                       aria-describedby="bigPictureInsuranceMonthly" />
+                       aria-describedby="bigPictureInsuranceHealthMonthly" />
               </div>
-              <select id="bigPictureInsuranceFreq" class="big-picture-freq" data-big-frequency="insurance"
-                      aria-label="Insurance frequency">
+              <select id="bigPictureInsuranceHealthFreq" class="big-picture-freq" data-big-frequency="insurance_health"
+                      aria-label="Health insurance frequency">
                 <option value="monthly">Monthly</option>
                 <option value="yearly">Yearly</option>
               </select>
-              <span class="big-picture-monthly" id="bigPictureInsuranceMonthly">$0.00 / mo</span>
+              <span class="big-picture-monthly" id="bigPictureInsuranceHealthMonthly">$0.00 / mo</span>
+            </div>
+
+            <div class="big-picture-row">
+              <label class="big-picture-label" for="bigPictureInsuranceHome">
+                Home insurance
+              </label>
+              <div class="big-picture-input">
+                <span class="money-prefix" aria-hidden="true">$</span>
+                <input type="number" id="bigPictureInsuranceHome" data-big-category="insurance_home"
+                       min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                       aria-describedby="bigPictureInsuranceHomeMonthly" />
+              </div>
+              <select id="bigPictureInsuranceHomeFreq" class="big-picture-freq" data-big-frequency="insurance_home"
+                      aria-label="Home insurance frequency">
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+              <span class="big-picture-monthly" id="bigPictureInsuranceHomeMonthly">$0.00 / mo</span>
+            </div>
+
+            <div class="big-picture-row">
+              <label class="big-picture-label" for="bigPictureInsuranceAuto">
+                Auto insurance
+              </label>
+              <div class="big-picture-input">
+                <span class="money-prefix" aria-hidden="true">$</span>
+                <input type="number" id="bigPictureInsuranceAuto" data-big-category="insurance_auto"
+                       min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                       aria-describedby="bigPictureInsuranceAutoMonthly" />
+              </div>
+              <select id="bigPictureInsuranceAutoFreq" class="big-picture-freq" data-big-frequency="insurance_auto"
+                      aria-label="Auto insurance frequency">
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+              <span class="big-picture-monthly" id="bigPictureInsuranceAutoMonthly">$0.00 / mo</span>
+            </div>
+
+            <div class="big-picture-row">
+              <label class="big-picture-label" for="bigPictureInsuranceOther">
+                Other insurance <span class="optional">life, travel, etc.</span>
+              </label>
+              <div class="big-picture-input">
+                <span class="money-prefix" aria-hidden="true">$</span>
+                <input type="number" id="bigPictureInsuranceOther" data-big-category="insurance_other"
+                       min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                       aria-describedby="bigPictureInsuranceOtherMonthly" />
+              </div>
+              <select id="bigPictureInsuranceOtherFreq" class="big-picture-freq" data-big-frequency="insurance_other"
+                      aria-label="Other insurance frequency">
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+              <span class="big-picture-monthly" id="bigPictureInsuranceOtherMonthly">$0.00 / mo</span>
             </div>
 
             <div class="big-picture-row">

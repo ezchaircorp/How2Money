@@ -1,17 +1,31 @@
-// Login + signup logic for the website. Passwords are hashed with bcrypt.
-// server.ts calls these; nothing in here reads from the terminal.
+// Login + signup backed by MongoDB.
+//
+// Passwords are bcrypt-hashed (10 rounds) and stored in `users`. The document
+// shape matches the demo user the server seeds at startup, plus password_hash.
 
 import bcrypt from 'bcrypt';
-import { pool } from './db_con';
+import type { ObjectId } from 'mongodb';
+import { getDb } from './db_mongo';
 
 const ALLOWED_DOMAINS = ['@gmail.com', '@hotmail.com', '@yahoo.com'];
 const SALT_ROUNDS = 10;
 
-export type User = { id: number; name: string; email: string };
+export type User = { id: string; name: string; email: string };
 
 export type Result =
     | { ok: true; user: User }
     | { ok: false; status: number; error: string };
+
+export type StoredUserDoc = {
+    _id?: ObjectId;
+    username: string;
+    username_lower: string;
+    email: string;
+    email_lower: string;
+    password_hash?: string;
+    name: string;
+    created_at: Date;
+};
 
 function isValidEmail(email: string): boolean {
     // endsWith instead of includes, so "x@gmail.com.evil.com" is rejected
@@ -41,23 +55,28 @@ export async function signup(
         return { ok: false, status: 400, error: "Passwords aren't the same." };
     }
 
-    const emailTaken = await pool.query('SELECT 1 FROM login_info WHERE useremail = $1', [email]);
-    if (emailTaken.rows.length > 0) {
+    const db = await getDb();
+    const users = db.collection<StoredUserDoc>('users');
+
+    if (await users.findOne({ email_lower: email }, { projection: { _id: 1 } })) {
         return { ok: false, status: 409, error: 'That email is already registered.' };
     }
-
-    const userTaken = await pool.query('SELECT 1 FROM login_info WHERE username = $1', [username]);
-    if (userTaken.rows.length > 0) {
+    if (await users.findOne({ username_lower: username.toLowerCase() }, { projection: { _id: 1 } })) {
         return { ok: false, status: 409, error: 'That username already exists.' };
     }
 
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
-    const inserted = await pool.query(
-        'INSERT INTO login_info (username, password, useremail) VALUES ($1, $2, $3) RETURNING userid',
-        [username, hash, email]
-    );
+    const inserted = await users.insertOne({
+        username,
+        username_lower: username.toLowerCase(),
+        email,
+        email_lower: email,
+        password_hash: hash,
+        name: username,
+        created_at: new Date(),
+    });
 
-    return { ok: true, user: { id: inserted.rows[0]!.userid, name: username, email } };
+    return { ok: true, user: { id: String(inserted.insertedId), name: username, email } };
 }
 
 export async function login(email: string, password: string): Promise<Result> {
@@ -67,19 +86,21 @@ export async function login(email: string, password: string): Promise<Result> {
         return { ok: false, status: 400, error: 'Email and password are required.' };
     }
 
-    const result = await pool.query(
-        'SELECT userid, username, password, useremail FROM login_info WHERE useremail = $1',
-        [email]
-    );
-    const row = result.rows[0] as
-        | { userid: number; username: string; password: string; useremail: string }
-        | undefined;
+    const db = await getDb();
+    const user = await db.collection<StoredUserDoc>('users').findOne({ email_lower: email });
 
     // Same message whether the email is missing or the password is wrong,
-    // so nobody can probe which emails are registered
-    if (!row || !(await bcrypt.compare(password, row.password))) {
+    // so nobody can probe which emails are registered.
+    if (!user?.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
         return { ok: false, status: 401, error: 'Invalid email or password.' };
     }
 
-    return { ok: true, user: { id: row.userid, name: row.username, email: row.useremail } };
+    return {
+        ok: true,
+        user: {
+            id: String(user._id),
+            name: user.username || user.name,
+            email: user.email,
+        },
+    };
 }

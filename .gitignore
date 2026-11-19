@@ -4,17 +4,18 @@
 # git, so a clone on any OS installs the right ones.
 node_modules/
 
-# Rust build output (budgeting/)
+# Rust build output — no crate in the repo any more, kept so a stray local
+# checkout of the deleted budgeting/ engine stays ignored.
 target/
 
 # Environments and credentials — nothing in *.env should ever be committed.
-# NOTE: How2MoneyLoginInfo/database/connection_info.env is still tracked from
-# before this rule existed; it needs git rm --cached + credential rotation
-# (owner decision), which this rule alone cannot undo.
+# NOTE: How2MoneyLoginInfo/database/connection_info.env was deleted from the
+# working tree, but it still exists in git history from before this rule;
+# rotating those Postgres credentials is still an owner decision.
 .env
 *.env
 
-# Local prototype dashboard data (created by How2MoneyLoginInfo/server.ts)
+# Local prototype dashboard data (demo mode / Mongo fallback in server.ts)
 prototype_data_storage.xlsx
 prototype_data_storage.xlsx.*.tmp
 

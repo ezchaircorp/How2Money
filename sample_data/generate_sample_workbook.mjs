@@ -5,7 +5,7 @@
 //   node sample_data/generate_sample_workbook.mjs
 //   node sample_data/generate_sample_workbook.mjs sample_data/my_test.xlsx
 //
-// The workbook has the same sheets as database/prototype_store.ts, six months
+// The workbook has the same sheets as database/prototype_workbook_store.ts, six months
 // of transactions ending today, a full expected-monthly setup, and a Big
 // Picture budget. Recurring flags are set on rent, utilities, and subscriptions
 // so the stats view has a meaningful split.
@@ -183,13 +183,17 @@ const expenses = [
     ['household', 90, 'monthly'],
 ];
 
-// Monthly budget: 5000 - (300 + 200 + 150) - 800 = 3550. The stats view scales
-// the category targets above to fit this total.
+// Monthly budget: 5000 - (300 + 200 + 625) - 800 = 3075. The stats view scales
+// the category targets above to fit this total. Insurance is split four ways
+// (health/home/auto/other) to match the dashboard planner.
 const bigPicture = [
     ['income', 5000, 'monthly'],
     ['debt_payment', 300, 'monthly'],
     ['schooling', 2400, 'yearly'],
-    ['insurance', 1800, 'yearly'],
+    ['insurance_health', 4800, 'yearly'],
+    ['insurance_home', 1200, 'yearly'],
+    ['insurance_auto', 900, 'yearly'],
+    ['insurance_other', 600, 'yearly'],
     ['savings', 800, 'monthly'],
 ];
 

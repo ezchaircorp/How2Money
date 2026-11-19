@@ -1,30 +1,28 @@
 #!/usr/bin/env bash
-# One-command launcher for the How2Money prototype dashboard: no login,
-# no Postgres — just the static site + the local Excel workbook.
+# One-command launcher for the How2Money prototype dashboard.
 #
 # Usage:
-#   ./start_prototype.sh                                       # serve the tracked six-month sample
-#   PORT=3001 ./start_prototype.sh                             # pick a different port
-#   PROTOTYPE_STORAGE_FILE=/path/to/workbook.xlsx ./start_prototype.sh   # use your own copy
+#   ./start_prototype.sh                                  # MongoDB-backed dashboard
+#   DEMO=1 ./start_prototype.sh                           # demo mode from the workbook
+#   PROTOTYPE_STORAGE_FILE=/path/to/workbook.xlsx ./start_prototype.sh
+#                                                        # demo mode with your own copy
+#   PORT=3001 ./start_prototype.sh                        # pick a different port
 #
-# Note: edits made on the dashboard (transactions, Big Picture, monthly setup)
-# are saved into the workbook it serves. If that is the tracked sample file,
-# restore it afterwards with:
+# MongoDB is the normal store (accounts, sessions, dashboard profile,
+# transactions). If it is unreachable the server falls back to the local
+# workbook on its own, and stays there until it restarts. DEMO=1 (or passing
+# PROTOTYPE_STORAGE_FILE) skips Mongo for the dashboard entirely.
+#
+# Note: demo-mode edits (transactions, Big Picture, monthly setup) are saved
+# into the workbook it serves. If that is the tracked sample file, restore it
+# afterwards with:
 #   git checkout -- sample_data/prototype_six_months.xlsx
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP="$ROOT/How2MoneyLoginInfo"
-SAMPLE="${SAMPLE_WORKBOOK:-$ROOT/sample_data/prototype_six_months.xlsx}"
-STORAGE="${PROTOTYPE_STORAGE_FILE:-$SAMPLE}"
 PORT="${PORT:-3000}"
-
-if [[ ! -f "$SAMPLE" ]]; then
-  echo "Sample workbook not found: $SAMPLE" >&2
-  echo "Regenerate it with: node $ROOT/sample_data/generate_sample_workbook.mjs" >&2
-  exit 1
-fi
 
 cd "$APP"
 
@@ -42,5 +40,27 @@ if [[ ! -f node_modules/typescript/bin/tsc \
   npm install
 fi
 
-echo "Prototype mode: serving '$STORAGE' at http://localhost:$PORT/dashboard.html"
-PORT="$PORT" PROTOTYPE_STORAGE_FILE="$STORAGE" exec node node_modules/tsx/dist/cli.mjs server.ts
+# An explicit workbook only makes sense in demo mode, so treat it as one.
+if [[ -n "${PROTOTYPE_STORAGE_FILE:-}" ]]; then
+  H2M_DEMO=1
+  STORAGE="$PROTOTYPE_STORAGE_FILE"
+else
+  H2M_DEMO="${DEMO:-${H2M_DEMO:-0}}"
+  # Empty means "use the store's default", which keeps the sample-seed on a
+  # fresh checkout. Passing the path explicitly would disable that seed.
+  STORAGE=""
+fi
+
+if [[ "$H2M_DEMO" == "1" ]]; then
+  if [[ -n "$STORAGE" && ! -f "$STORAGE" ]]; then
+    echo "Workbook not found: $STORAGE" >&2
+    exit 1
+  fi
+  echo "Demo mode: serving '${STORAGE:-$ROOT/prototype_data_storage.xlsx}' at http://localhost:$PORT/dashboard.html"
+else
+  echo "MongoDB mode: serving the dashboard at http://localhost:$PORT/dashboard.html"
+  echo "(falls back to the workbook automatically if MongoDB is unreachable)"
+fi
+
+PORT="$PORT" H2M_DEMO="$H2M_DEMO" PROTOTYPE_STORAGE_FILE="$STORAGE" \
+  exec node node_modules/tsx/dist/cli.mjs server.ts

@@ -47,7 +47,7 @@
     <div class="form-panel">
       <span class="form-section-label">Get Started</span>
       <h2 id="assessmentHeading">Get a quick look before you sign up</h2>
-      <p>All information is encrypted in transit and stored securely. We do not share your data with third parties or use it for marketing purposes.</p>
+      <p>Answer a few questions and see exactly where your money goes. Everything is calculated in your browser &mdash; your numbers are never stored or shared.</p>
       <p class="form-hint" id="signedInNote" hidden></p>
 
       <form id="assessmentForm" novalidate>
@@ -132,6 +132,10 @@
                     <label for="expense_housing_utilities">Utilities</label>
                     <input type="number" id="expense_housing_utilities" name="expense_housing_utilities" min="0" step="0.01" placeholder="0" />
                   </div>
+                  <div class="breakdown-field">
+                    <label for="expense_housing_insurance">Home / Renters Insurance</label>
+                    <input type="number" id="expense_housing_insurance" name="expense_housing_insurance" min="0" step="0.01" placeholder="0" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -167,6 +171,10 @@
                   <div class="breakdown-field">
                     <label for="expense_transportation_auto">Auto Repairs &amp; Upkeep</label>
                     <input type="number" id="expense_transportation_auto" name="expense_transportation_auto" min="0" step="0.01" placeholder="0" />
+                  </div>
+                  <div class="breakdown-field">
+                    <label for="expense_transportation_insurance">Auto Insurance</label>
+                    <input type="number" id="expense_transportation_insurance" name="expense_transportation_insurance" min="0" step="0.01" placeholder="0" />
                   </div>
                 </div>
               </div>
@@ -270,18 +278,30 @@
               </div>
             </div>
 
-            <!-- Health & Self-Care -->
-            <div class="expense-item">
+            <!-- Health & Self-Care — optional breakdown (insurance) -->
+            <div class="expense-item" data-expense="health_self_care">
               <div class="expense-row">
                 <div class="expense-label">
                   <label class="expense-name" for="expense_health_self_care">Health &amp; Self-Care</label>
                   <span class="expense-desc">Doctor visits, prescriptions, the gym, and personal care.</span>
                 </div>
-                <input type="number" id="expense_health_self_care" name="expense_health_self_care" min="0" step="0.01" placeholder="0" />
+                <div class="total-cell">
+                  <input type="number" id="expense_health_self_care" name="expense_health_self_care" min="0" step="0.01" placeholder="0" class="expense-total" data-expense-total="health_self_care" />
+                  <button type="button" class="link-reset" data-expense-reset>Enter manually</button>
+                </div>
                 <select class="expense-freq" name="expense_health_self_care_freq" aria-label="Health and self-care frequency">
                   <option value="monthly" selected>Monthly</option>
                   <option value="yearly">Yearly</option>
                 </select>
+              </div>
+              <div class="expense-breakdown">
+                <p class="breakdown-hint">Break it down below &mdash; the total on the left adds up for you</p>
+                <div class="breakdown-grid">
+                  <div class="breakdown-field">
+                    <label for="expense_health_insurance">Health Insurance</label>
+                    <input type="number" id="expense_health_insurance" name="expense_health_insurance" min="0" step="0.01" placeholder="0" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -358,6 +378,10 @@
                     <label for="expense_pets_grooming">Grooming &amp; Boarding</label>
                     <input type="number" id="expense_pets_grooming" name="expense_pets_grooming" min="0" step="0.01" placeholder="0" />
                   </div>
+                  <div class="breakdown-field">
+                    <label for="expense_family_insurance">Life &amp; Other Insurance</label>
+                    <input type="number" id="expense_family_insurance" name="expense_family_insurance" min="0" step="0.01" placeholder="0" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -385,17 +409,50 @@
         <div class="submit-row">
           <button type="submit" class="btn-submit" id="submitBtn" disabled aria-disabled="true">
             <div class="spinner"></div>
-            Submit Assessment
+            See My Results
           </button>
           <p class="submit-note">
             <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Your data is encrypted and never sold or shared.
+            Calculated in your browser. Nothing is saved or sent anywhere.
           </p>
         </div>
 
         <div class="status-msg" id="formStatus"></div>
 
       </form>
+
+      <!-- CLIENT-SIDE RESULTS — computed in the browser, never stored -->
+      <section class="results-panel" id="resultsPanel" hidden aria-live="polite">
+        <span class="form-section-label">Your Snapshot</span>
+        <h2>Where your money goes</h2>
+        <p class="results-sub">
+          Built from the numbers you entered. These results stay in this browser tab &mdash;
+          nothing is saved, sent, or shared.
+        </p>
+
+        <div class="meter-card" id="meterCard"></div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>Necessities vs junk</h3>
+            <div id="pieBands"></div>
+          </div>
+          <div class="chart-card">
+            <h3>Games, travel &amp; other non-essentials</h3>
+            <div id="pieFun"></div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Necessities vs the national average</h3>
+          <div id="necessityCompare"></div>
+        </div>
+
+        <div class="results-actions">
+          <button type="button" class="btn-submit btn-secondary" id="editBtn">Edit My Numbers</button>
+          <a class="results-link" href="dashboard.html">See the dashboard &rarr;</a>
+        </div>
+      </section>
     </div>
   </div>
 

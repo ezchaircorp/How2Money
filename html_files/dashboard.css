@@ -232,6 +232,20 @@ nav {
 .status-msg.success { background:rgba(26,122,74,0.1); border:1px solid rgba(26,122,74,0.3); color:var(--success); }
 .status-msg.error { background:rgba(192,57,43,0.08); border:1px solid rgba(192,57,43,0.25); color:var(--error); }
 
+/* Demo mode: the server fell back to the workbook because Mongo is down. */
+.demo-banner {
+  background:rgba(201,168,76,0.14);
+  border:1px solid rgba(201,168,76,0.45);
+  border-left:4px solid var(--gold);
+  padding:0.9rem 1.1rem;
+  border-radius:4px;
+  font-size:0.85rem;
+  line-height:1.6;
+  color:var(--slate);
+  margin-bottom:1rem;
+}
+.demo-banner strong { color:var(--navy); }
+
 /* ── HISTORY ── */
 .history-list { list-style:none; }
 .history-item { padding:0.85rem 0; border-top:1px solid var(--border); }

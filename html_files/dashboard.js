@@ -4,9 +4,10 @@
 //
 // The dashboard is in prototype mode: there is no login check and no logout.
 // It reads and writes the shared prototype profile through the public
-// /api/prototype/* endpoints. The server keeps that data in the local
-// prototype_data_storage.xlsx workbook, so this page works without Postgres.
-// The default tab is the stats view, which renders its charts with plain SVG.
+// /api/prototype/* endpoints. The server keeps that data in MongoDB, and
+// falls back to the local prototype_data_storage.xlsx workbook (demo mode)
+// when Mongo is unreachable. The default tab is the stats view, which renders
+// its charts with plain SVG.
 // When personal profiles are wired up later, only the CONFIG URLs need to
 // change.
 
@@ -32,6 +33,8 @@ const state = {
   transactions: [],
   bigPicture: { entries: [], totals: {} },
   advice: null,
+  // 'mongo' normally; 'demo' when the server fell back to the workbook.
+  mode: 'mongo',
   statsPeriod: 'month',
   // Which way the spending chart is drawn: 'budget' compares each point with
   // the budget (bars are +/−), 'total' shows the plain dollar amount spent.
@@ -92,9 +95,24 @@ const BIG_PICTURE_FIELDS = [
     monthlyId: 'bigPictureSchoolingMonthly',
   },
   {
-    category: 'insurance', label: 'Insurance',
-    inputId: 'bigPictureInsurance', frequencyId: 'bigPictureInsuranceFreq',
-    monthlyId: 'bigPictureInsuranceMonthly',
+    category: 'insurance_health', label: 'Health insurance',
+    inputId: 'bigPictureInsuranceHealth', frequencyId: 'bigPictureInsuranceHealthFreq',
+    monthlyId: 'bigPictureInsuranceHealthMonthly',
+  },
+  {
+    category: 'insurance_home', label: 'Home insurance',
+    inputId: 'bigPictureInsuranceHome', frequencyId: 'bigPictureInsuranceHomeFreq',
+    monthlyId: 'bigPictureInsuranceHomeMonthly',
+  },
+  {
+    category: 'insurance_auto', label: 'Auto insurance',
+    inputId: 'bigPictureInsuranceAuto', frequencyId: 'bigPictureInsuranceAutoFreq',
+    monthlyId: 'bigPictureInsuranceAutoMonthly',
+  },
+  {
+    category: 'insurance_other', label: 'Other insurance',
+    inputId: 'bigPictureInsuranceOther', frequencyId: 'bigPictureInsuranceOtherFreq',
+    monthlyId: 'bigPictureInsuranceOtherMonthly',
   },
   {
     category: 'savings', label: 'Savings goals',
@@ -686,6 +704,7 @@ async function loadStats() {
     }
 
     state.stats = result.data;
+    setMode(result.data.mode);
     renderStats(result.data);
   } catch (_) {
     if (request !== state.statsRequest) return;
@@ -1111,7 +1130,12 @@ function updateBigPictureSummary() {
 
   const income = values.income.monthly;
   const recurring =
-      values.debt_payment.monthly + values.schooling.monthly + values.insurance.monthly;
+      values.debt_payment.monthly +
+      values.schooling.monthly +
+      values.insurance_health.monthly +
+      values.insurance_home.monthly +
+      values.insurance_auto.monthly +
+      values.insurance_other.monthly;
   const savings = values.savings.monthly;
   const budget = income - recurring - savings;
 
@@ -1170,6 +1194,7 @@ function fallbackPayload() {
       entries: [],
       totals: {
         income: 0, debt_payment: 0, schooling: 0, insurance: 0,
+        insurance_health: 0, insurance_home: 0, insurance_auto: 0, insurance_other: 0,
         recurring: 0, savings: 0, budget: 0, configured: false,
       },
     },
@@ -1178,11 +1203,21 @@ function fallbackPayload() {
   };
 }
 
+// 'mongo' normally, 'demo' when the server fell back to the workbook. The
+// banner is shown whenever the last response said demo, including a mid-session
+// fallback noticed by the stats request.
+function setMode(mode) {
+  state.mode = mode === 'demo' ? 'demo' : 'mongo';
+  const banner = document.getElementById('demoBanner');
+  if (banner) banner.hidden = state.mode !== 'demo';
+}
+
 function applyProfile(data, options = {}) {
   const drafts = options.preserveMonthlyDrafts ? captureMonthlyDrafts() : null;
   const bigPictureDrafts = options.preserveBigPictureDrafts ? captureBigPictureDrafts() : null;
 
   state.profile = data.profile || {};
+  setMode(data.mode);
   state.buckets = Array.isArray(data.buckets) && data.buckets.length ? data.buckets : FALLBACK_BUCKETS;
   state.monthly = normalizeMonthly(data.monthly, state.buckets, drafts);
   state.bigPicture = data.big_picture || { entries: [], totals: {} };

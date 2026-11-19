@@ -225,6 +225,75 @@ select {
 
 #formStatus { margin-top:1.25rem; }
 
+/* ── RESULTS (client-side only) ── */
+.results-panel { margin-top:1rem; }
+.results-panel h2 { font-family:'Playfair Display',serif; font-size:1.85rem; font-weight:700; color:var(--navy); margin-bottom:0.75rem; }
+.results-sub { font-size:0.9rem; color:var(--muted); line-height:1.75; margin-bottom:2rem; max-width:60ch; }
+
+.meter-card {
+  border:1px solid var(--border); border-radius:2px;
+  padding:1.5rem 1.75rem; margin-bottom:1.5rem; background:var(--warm);
+}
+.meter-head { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.meter-head h3 { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--navy); }
+.meter-verdict { font-size:0.85rem; font-weight:600; }
+.meter-verdict.under { color:var(--success); }
+.meter-verdict.over  { color:var(--error); }
+.meter-track {
+  position:relative; height:14px; border-radius:7px; overflow:hidden;
+  background:linear-gradient(90deg, rgba(26,122,74,0.25) 0%, rgba(26,122,74,0.25) 50%, rgba(192,57,43,0.25) 50%, rgba(192,57,43,0.25) 100%);
+}
+.meter-fill { position:absolute; inset:0 auto 0 0; height:100%; background:var(--slate); opacity:0.85; border-radius:7px 0 0 7px; }
+.meter-marker {
+  position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--navy);
+  transform:translateX(-1px);
+}
+.meter-marker::after {
+  content:''; position:absolute; top:-3px; left:50%; transform:translateX(-50%);
+  border:4px solid transparent; border-top-color:var(--navy); border-bottom:none;
+}
+.meter-scale { display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); margin-top:0.6rem; }
+.meter-scale .mid { color:var(--navy); font-weight:600; }
+.meter-note { font-size:0.8rem; color:var(--muted); margin-top:0.75rem; line-height:1.6; }
+
+.chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
+.chart-card {
+  border:1px solid var(--border); border-radius:2px;
+  padding:1.5rem 1.75rem; background:var(--white);
+}
+.chart-card h3 { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--navy); margin-bottom:1rem; }
+.chart-body { display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
+.chart-body svg { flex:0 0 auto; }
+.pie-legend { list-style:none; flex:1; min-width:150px; }
+.pie-legend li { display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--text); padding:0.3rem 0; }
+.legend-dot { width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
+.legend-label { flex:1; }
+.legend-value { color:var(--muted); font-variant-numeric:tabular-nums; }
+.pie-empty { font-size:0.85rem; color:var(--muted); padding:1rem 0; }
+
+.necessity-table { width:100%; border-collapse:collapse; margin-top:0.25rem; }
+.necessity-table th, .necessity-table td {
+  text-align:left; font-size:0.8rem; padding:0.55rem 0.5rem;
+  border-bottom:1px solid var(--border);
+}
+.necessity-table th { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); font-weight:600; }
+.necessity-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.necessity-table .delta.above { color:var(--error); font-weight:600; }
+.necessity-table .delta.below { color:var(--success); font-weight:600; }
+.necessity-total { font-size:0.82rem; margin-top:0.9rem; color:var(--text); line-height:1.6; }
+.necessity-total strong.above { color:var(--error); }
+.necessity-total strong.below { color:var(--success); }
+
+.results-actions { display:flex; align-items:center; gap:1.5rem; margin-top:1.75rem; flex-wrap:wrap; }
+.btn-secondary { background:var(--navy); color:var(--white); }
+.btn-secondary:hover { background:var(--slate); }
+.results-link { font-size:0.85rem; font-weight:600; color:var(--gold); text-decoration:none; }
+.results-link:hover { text-decoration:underline; }
+
+@media (max-width:960px) {
+  .chart-grid { grid-template-columns:1fr; }
+}
+
 /* ── FOOTER ── */
 footer { background:var(--navy); border-top:1px solid rgba(201,168,76,0.15); padding:3rem 8%; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
 .footer-logo { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--white); }

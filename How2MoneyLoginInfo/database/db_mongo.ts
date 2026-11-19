@@ -59,7 +59,12 @@ export async function getDb(): Promise<Db> {
         // If the first attempt fails (mongod down, bad URI) forget the rejected
         // promise so the next caller retries instead of getting the same error forever.
         connectPromise = (async () => {
-            const c = new MongoClient(MONGO_URI as string);
+            // Short selection timeout so the prototype router can fall back to
+            // demo mode quickly when Mongo is down.
+            const c = new MongoClient(MONGO_URI as string, {
+                serverSelectionTimeoutMS: 2_000,
+                connectTimeoutMS: 2_000,
+            });
             await c.connect();
             client = c;
             // Ping so a bad URI/host fails here instead of on the first query.

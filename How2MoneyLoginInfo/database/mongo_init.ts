@@ -1,0 +1,127 @@
+// Mongo startup: indexes, the demo user, and a demo profile on a fresh DB.
+//
+// Called once in the background when the server starts and by the workbook
+// import script. A Mongo outage never blocks boot — the prototype router then
+// falls back to demo mode.
+
+import fs from 'node:fs';
+import type { Collection, Document, IndexDescription } from 'mongodb';
+import { getDb } from './db_mongo';
+import type { StoredUserDoc } from './mongo_auth';
+import {
+    hasPrototypeProfile,
+    importProfileData,
+} from './prototype_mongo_store';
+import {
+    demoSeedWorkbookPath,
+    readProfileFromWorkbook,
+} from './prototype_workbook_store';
+
+const DEMO_USERNAME = 'demo';
+const DEMO_EMAIL = 'demo@how2money.local';
+const DEMO_DISPLAY_NAME = 'Demo';
+
+// Indexes are idempotent, so re-running this on every boot is fine.
+type IndexOptions = {
+    unique?: boolean;
+    sparse?: boolean;
+    expireAfterSeconds?: number;
+};
+
+const OPTION_KEYS: Array<keyof IndexOptions> = ['unique', 'sparse', 'expireAfterSeconds'];
+
+// Older versions of this project created some of these indexes without the
+// unique flag. createIndex then stops startup with IndexKeySpecsConflict, so
+// reconcile instead: when the same key pattern already exists with different
+// options, drop it and recreate it the way we want.
+async function ensureIndex(
+    collection: Collection<Document>,
+    key: Record<string, 1 | -1>,
+    options: IndexOptions = {},
+): Promise<void> {
+    let existing: IndexDescription[] = [];
+    try {
+        existing = await collection.indexes();
+    } catch {
+        // A collection that does not exist yet has no indexes to reconcile.
+    }
+
+    const match = existing.find(index => {
+        const entries = Object.entries(index.key as Record<string, number>);
+        return entries.length === Object.keys(key).length
+            && Object.entries(key).every(([field, direction]) =>
+                entries.some(([name, value]) => name === field && value === direction)
+            );
+    });
+
+    if (match?.name) {
+        const same = OPTION_KEYS.every(option =>
+            (match[option] as unknown) === (options[option] as unknown)
+        );
+        if (same) return;
+        await collection.dropIndex(match.name);
+    }
+
+    await collection.createIndex(key, options);
+}
+
+async function ensureIndexes(): Promise<void> {
+    const db = await getDb();
+    await ensureIndex(db.collection('users'), { username_lower: 1 }, { unique: true });
+    await ensureIndex(db.collection('users'), { email_lower: 1 }, { unique: true, sparse: true });
+    await ensureIndex(db.collection('profiles'), { profile_key: 1 }, { unique: true });
+    await ensureIndex(
+        db.collection('transactions'),
+        { profile_id: 1, transaction_id: 1 },
+        { unique: true },
+    );
+    await ensureIndex(db.collection('transactions'), { profile_id: 1, spent_on: -1 });
+    await ensureIndex(db.collection('sessions'), { session_id: 1 }, { unique: true });
+    await ensureIndex(
+        db.collection('sessions'),
+        { expires_at: 1 },
+        { expireAfterSeconds: 0 },
+    );
+    await ensureIndex(
+        db.collection('spend_entries'),
+        { userid: 1, period: 1, period_start: 1, category: 1 },
+        { unique: true },
+    );
+}
+
+async function seedDemoUser(): Promise<void> {
+    const db = await getDb();
+    const users = db.collection<StoredUserDoc>('users');
+    await users.updateOne(
+        { username_lower: DEMO_USERNAME },
+        {
+            $set: {
+                username: DEMO_USERNAME,
+                email: DEMO_EMAIL,
+                email_lower: DEMO_EMAIL,
+                name: DEMO_DISPLAY_NAME,
+            },
+            $setOnInsert: { created_at: new Date() },
+        },
+        { upsert: true },
+    );
+}
+
+// A fresh database with no prototype profile gets the checked-in sample so the
+// dashboard shows charts immediately. An existing profile is never replaced.
+async function seedDemoProfile(): Promise<void> {
+    if (await hasPrototypeProfile()) return;
+
+    const sample = demoSeedWorkbookPath();
+    if (!fs.existsSync(sample)) return;
+
+    const { data, displayName } = await readProfileFromWorkbook(sample);
+    await importProfileData({ ...data, displayName });
+    console.log(`Seeded the Mongo prototype profile from ${sample}`);
+}
+
+export async function initMongo(): Promise<void> {
+    await ensureIndexes();
+    await seedDemoUser();
+    await seedDemoProfile();
+}

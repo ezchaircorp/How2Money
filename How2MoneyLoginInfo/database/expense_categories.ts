@@ -8,7 +8,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import { pool } from './db_con';
 
 export type ExpenseCategory = {
     expense: string;
@@ -113,12 +112,25 @@ export const BUCKET_DETAIL_FIELDS: Record<string, string[]> = {
     household: [],
 };
 
-export function bucketAmountField(bucket: string): string {
-    return `expense_${bucket}`;
-}
+// Insurance breakdowns that only the assessment form asks about. They are kept
+// out of BUCKET_DETAIL_FIELDS on purpose: the dashboard's transaction picker
+// should stay free of insurance categories, so these are assessment-only.
+// Each entry maps the form field to the canonical category its amount belongs
+// to, the same way DETAIL_WEIGHTS does for the shared breakdowns.
+export const ASSESSMENT_INSURANCE_DETAILS: Record<
+    string,
+    Array<{ field: string; category: string }>
+> = {
+    housing: [{ field: 'expense_housing_insurance', category: 'Housing' }],
+    transportation: [{ field: 'expense_transportation_insurance', category: 'Auto & Vehicle' }],
+    health_self_care: [{ field: 'expense_health_insurance', category: 'Healthcare' }],
+    family_pets: [{ field: 'expense_family_insurance', category: 'Family' }],
+};
 
-export function bucketFrequencyField(bucket: string): string {
-    return `expense_${bucket}_freq`;
+export function assessmentDetailFields(bucket: string): string[] {
+    const shared = BUCKET_DETAIL_FIELDS[bucket] ?? [];
+    const insurance = (ASSESSMENT_INSURANCE_DETAILS[bucket] ?? []).map(entry => entry.field);
+    return [...shared, ...insurance];
 }
 
 // How many times a bucket's amount happens in a year, used to turn yearly or
@@ -160,8 +172,9 @@ export function bucketWeight(bucket: string): number {
 
 // Which expense_weight.json entry each fine-grained dashboard transaction
 // category measures against. Buckets without detail fields fall through to
-// bucketWeight instead.
-const DETAIL_WEIGHTS: Record<string, string> = {
+// bucketWeight instead. Exported so the assessment page can split a bucket's
+// number into its underlying categories.
+export const DETAIL_WEIGHTS: Record<string, string> = {
     expense_housing_rent: 'Housing',
     expense_housing_taxes: 'Housing',
     expense_housing_repairs: 'Housing',
@@ -193,22 +206,4 @@ export function transactionWeight(category: string, bucket: string): number {
         if (found) return found.val;
     }
     return bucketWeight(bucket) || 5;
-}
-
-// Push expense_weight.json into the expense_categories table so the API and
-// the Rust engine read the same numbers. Safe to call on every start.
-export async function syncExpenseCategories(): Promise<void> {
-    const categories = loadExpenseCategories();
-
-    for (const c of categories) {
-        await pool.query(
-            `INSERT INTO expense_categories (category, weight, avg_monthly)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (category) DO UPDATE
-             SET weight = EXCLUDED.weight,
-                 avg_monthly = EXCLUDED.avg_monthly,
-                 updated_at = now()`,
-            [c.expense, c.val, c.cost_per_month]
-        );
-    }
 }
