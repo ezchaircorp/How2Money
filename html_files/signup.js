@@ -23,9 +23,15 @@ form.addEventListener('submit', async (e) => {
   const name = form.name.value.trim();
   const email = form.email.value.trim();
   const password = form.password.value;
+  const confirm = form.confirm.value;
 
   if (!name || !email || !password) {
     showStatus('error', 'Please fill in your name, email, and password.');
+    return;
+  }
+
+  if (password !== confirm) {
+    showStatus('error', 'The two passwords do not match.');
     return;
   }
 
@@ -46,7 +52,7 @@ form.addEventListener('submit', async (e) => {
     } else {
       showStatus('error', data.error || 'Something went wrong. Please try again.');
     }
-  } catch (err) {
+  } catch {
     showStatus('error', 'Could not reach the server. Is it running?');
   } finally {
     submitBtn.disabled = false;

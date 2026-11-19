@@ -53,7 +53,7 @@ form.addEventListener('submit', async (e) => {
     } else {
       showStatus('error', data.error || 'Invalid email or password.');
     }
-  } catch (err) {
+  } catch {
     showStatus('error', 'Could not reach the server. Is it running?');
   } finally {
     submitBtn.disabled = false;

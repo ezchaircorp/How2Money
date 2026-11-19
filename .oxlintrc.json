@@ -1,0 +1,23 @@
+{
+  "$schema": "./How2MoneyLoginInfo/node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "es2024": true,
+    "node": true
+  },
+  "rules": {
+    "no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["html_files/**/*.js"],
+      "env": { "browser": true, "node": false }
+    }
+  ],
+  "ignorePatterns": ["**/node_modules/**", "budgeting/target/**"]
+}
