@@ -6,6 +6,7 @@
 import bcrypt from 'bcrypt';
 import type { ObjectId } from 'mongodb';
 import { getDb } from './db_mongo';
+import { COLLECTIONS, type UserDoc } from './schema';
 
 const ALLOWED_DOMAINS = ['@gmail.com', '@hotmail.com', '@yahoo.com'];
 const SALT_ROUNDS = 10;
@@ -16,16 +17,7 @@ export type Result =
     | { ok: true; user: User }
     | { ok: false; status: number; error: string };
 
-export type StoredUserDoc = {
-    _id?: ObjectId;
-    username: string;
-    username_lower: string;
-    email: string;
-    email_lower: string;
-    password_hash?: string;
-    name: string;
-    created_at: Date;
-};
+export type StoredUserDoc = UserDoc;
 
 function isValidEmail(email: string): boolean {
     // endsWith instead of includes, so "x@gmail.com.evil.com" is rejected
@@ -56,7 +48,7 @@ export async function signup(
     }
 
     const db = await getDb();
-    const users = db.collection<StoredUserDoc>('users');
+    const users = db.collection<StoredUserDoc>(COLLECTIONS.users);
 
     if (await users.findOne({ email_lower: email }, { projection: { _id: 1 } })) {
         return { ok: false, status: 409, error: 'That email is already registered.' };
@@ -87,7 +79,7 @@ export async function login(email: string, password: string): Promise<Result> {
     }
 
     const db = await getDb();
-    const user = await db.collection<StoredUserDoc>('users').findOne({ email_lower: email });
+    const user = await db.collection<StoredUserDoc>(COLLECTIONS.users).findOne({ email_lower: email });
 
     // Same message whether the email is missing or the password is wrong,
     // so nobody can probe which emails are registered.

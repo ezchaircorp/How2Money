@@ -35,3 +35,12 @@ By default the dashboard and accounts live in MongoDB, so start Mongo and fill i
 unreachable the dashboard falls back to a local workbook, and you can force that
 with `DEMO=1 ./start_prototype.sh`. See `REQUIREMENTS.md` for the full setup and
 the workbook import command.
+
+> **School / guest wifi:** the MongoDB connection will not work on client-isolated
+> networks (most school, campus, hotel, and public wifi). Those networks block
+> device-to-device and outbound database traffic, so the Atlas hostname still
+> resolves but the TLS handshake to port 27017 is reset (`ECONNRESET`). That is a
+> network restriction, not a bad link or password. The server still starts and the
+> dashboard runs in workbook demo mode; use a phone hotspot, home network, or
+> `DEMO=1 ./start_prototype.sh` to work offline. If you need real Mongo on such a
+> network, run a local `mongod` and point `MONGO_URI` at it.

@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import type { Collection, Document, IndexDescription } from 'mongodb';
 import { getDb } from './db_mongo';
-import type { StoredUserDoc } from './mongo_auth';
+import { COLLECTIONS, SCHEMA_COLLECTIONS, type UserDoc } from './schema';
 import {
     hasPrototypeProfile,
     importProfileData,
@@ -65,33 +65,20 @@ async function ensureIndex(
     await collection.createIndex(key, options);
 }
 
-async function ensureIndexes(): Promise<void> {
+// The indexes come from database/schema.ts, so adding one there is enough.
+export async function ensureIndexes(): Promise<void> {
     const db = await getDb();
-    await ensureIndex(db.collection('users'), { username_lower: 1 }, { unique: true });
-    await ensureIndex(db.collection('users'), { email_lower: 1 }, { unique: true, sparse: true });
-    await ensureIndex(db.collection('profiles'), { profile_key: 1 }, { unique: true });
-    await ensureIndex(
-        db.collection('transactions'),
-        { profile_id: 1, transaction_id: 1 },
-        { unique: true },
-    );
-    await ensureIndex(db.collection('transactions'), { profile_id: 1, spent_on: -1 });
-    await ensureIndex(db.collection('sessions'), { session_id: 1 }, { unique: true });
-    await ensureIndex(
-        db.collection('sessions'),
-        { expires_at: 1 },
-        { expireAfterSeconds: 0 },
-    );
-    await ensureIndex(
-        db.collection('spend_entries'),
-        { userid: 1, period: 1, period_start: 1, category: 1 },
-        { unique: true },
-    );
+    for (const spec of SCHEMA_COLLECTIONS) {
+        const collection = db.collection(spec.name);
+        for (const index of spec.indexes) {
+            await ensureIndex(collection, index.key, index.options ?? {});
+        }
+    }
 }
 
 async function seedDemoUser(): Promise<void> {
     const db = await getDb();
-    const users = db.collection<StoredUserDoc>('users');
+    const users = db.collection<UserDoc>(COLLECTIONS.users);
     await users.updateOne(
         { username_lower: DEMO_USERNAME },
         {

@@ -13,6 +13,11 @@
 # workbook on its own, and stays there until it restarts. DEMO=1 (or passing
 # PROTOTYPE_STORAGE_FILE) skips Mongo for the dashboard entirely.
 #
+# MongoDB will not connect on client-isolated wifi (most school/guest/campus
+# networks): the Atlas hostname resolves but the TLS handshake to port 27017
+# is reset, so you get ECONNRESET. That is the network, not the link. Use a
+# phone hotspot or a local mongod, or run with DEMO=1.
+#
 # Note: demo-mode edits (transactions, Big Picture, monthly setup) are saved
 # into the workbook it serves. If that is the tracked sample file, restore it
 # afterwards with:

@@ -24,14 +24,31 @@ or unreachable Mongo never blocks the static site: the dashboard switches to
 workbook demo mode for the rest of the process lifetime, and the auth/spend
 endpoints answer with an error until Mongo is back.
 
+**Known network limitation:** MongoDB will not connect on client-isolated wifi
+(common on school, campus, hotel, and public networks). Those networks let DNS
+resolve the Atlas hostname but reset outbound connections to port 27017 during the
+TLS handshake, so the log shows `MongoServerSelectionError: read ECONNRESET` or
+`MongoNetworkError: read ECONNRESET`. This is not a credentials or connection-string
+problem. Use a non-isolated network, a phone hotspot, a local `mongod`, or run the
+dashboard with `H2M_DEMO=1`.
+
 ## Environment files (gitignored, fill in locally)
 
 - `How2MoneyLoginInfo/database/mongo_connection_info.env` — `MONGO_URI`, optional
-  `MONGO_DB_NAME`, optional `MONGO_USER` / `MONGO_PASS`.
+  `MONGO_DB_NAME`, optional `MONGO_USER` / `MONGO_PASS`. Loaded first, so it wins
+  over the repo-root `.env` when both define a key; the real process environment
+  wins over both.
 - `.env` (repo root) — loaded by `dotenv` at server startup; `database_link`,
   `database_user_name`, `database_password` are accepted as fallbacks.
-- Copy `.env.example` at the repo root for the full list, including `H2M_DEMO`,
-  `PROTOTYPE_STORAGE_FILE`, and `PORT`.
+- Credentials may live in the link or in the separate keys. The keys win per
+  field, so overriding only the password (or only the username) works. A blank
+  userinfo in the link (`mongodb+srv://:@cluster/`) and Atlas placeholders like
+  `<db_username>` / `<db_password>` are treated as "not set", and the link's
+  userinfo is dropped entirely when no username is available.
+- Copy `.env.example` at the repo root for the three keys the root `.env` uses
+  (`database_link`, `database_user_name`, `database_password`). Server settings
+  (`PORT`, `H2M_DEMO`, `PROTOTYPE_STORAGE_FILE`) come from the process
+  environment.
 
 ## Node dependencies (`How2MoneyLoginInfo/`)
 

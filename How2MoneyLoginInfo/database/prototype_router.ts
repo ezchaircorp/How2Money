@@ -55,13 +55,23 @@ const CATEGORY_BY_BUCKET = new Map(BUCKETS.map(bucket => [bucket.bucket, bucket]
 
 function connectionProblem(err: unknown): boolean {
     const name = (err as { name?: string })?.name ?? '';
-    return [
+    if ([
         'MongoServerSelectionError',
         'MongoNetworkError',
         'MongoNetworkTimeoutError',
         'MongoTopologyClosedError',
         'MongoNotConnectedError',
-    ].includes(name);
+        // Bad link / empty userinfo — the dashboard is better off on the
+        // workbook than answering 500s until someone fixes the .env.
+        'MongoParseError',
+        'MongoInvalidArgumentError',
+    ].includes(name)) {
+        return true;
+    }
+    // Atlas answers blank or placeholder credentials with an auth error rather
+    // than a network one, so count that as "can't use Mongo" too.
+    const code = (err as { code?: number })?.code;
+    return code === 18 || code === 13 || code === 8000;
 }
 
 async function currentMode(): Promise<PrototypeMode> {
@@ -73,7 +83,12 @@ async function currentMode(): Promise<PrototypeMode> {
         mode = 'mongo';
     } catch (err) {
         mode = 'demo';
-        console.error('Mongo is unreachable — prototype dashboard is in demo mode (xlsx).', err);
+        console.error(
+            'Mongo is unreachable — prototype dashboard is in demo mode (xlsx). ' +
+            'On school/guest wifi this is expected: client isolation resets Mongo connections. ' +
+            'Use a hotspot, a local mongod, or H2M_DEMO=1.',
+            err
+        );
     }
     return mode;
 }
@@ -82,7 +97,11 @@ function enterDemo(reason: unknown): void {
     mode = 'demo';
     if (!announcedFallback) {
         announcedFallback = true;
-        console.error('Mongo became unreachable — falling back to demo mode (xlsx).', reason);
+        console.error(
+            'Mongo became unreachable — falling back to demo mode (xlsx). ' +
+            '(School/guest wifi client isolation also looks like this.)',
+            reason
+        );
     }
 }
 

@@ -4,17 +4,10 @@
 // /api/spend, but the routes and store stay while that decision is open.
 
 import { getDb } from './db_mongo';
+import { COLLECTIONS, type SpendEntryDoc } from './schema';
 import type { Period, PeriodWindow, SpendEntryInput, StoredSpendEntry } from './db_spend';
 
-export type MongoSpendEntryDoc = {
-    userid: string;
-    category: string;
-    amount: number;
-    period: string;
-    period_start: string;
-    period_end: string;
-    created_at: Date;
-};
+export type MongoSpendEntryDoc = SpendEntryDoc;
 
 function asStoredSpendEntry(doc: MongoSpendEntryDoc): StoredSpendEntry {
     return {
@@ -32,7 +25,7 @@ function asStoredSpendEntry(doc: MongoSpendEntryDoc): StoredSpendEntry {
 export async function listMongoSpendEntries(userid: string, limit = 200): Promise<StoredSpendEntry[]> {
     const db = await getDb();
     const rows = await db
-        .collection<MongoSpendEntryDoc>('spend_entries')
+        .collection<MongoSpendEntryDoc>(COLLECTIONS.spendEntries)
         .find({ userid })
         .sort({ period_start: -1, period: -1, category: 1 })
         .limit(limit)
@@ -48,7 +41,7 @@ export async function listMongoSpendEntriesForWindow(
 ): Promise<StoredSpendEntry[]> {
     const db = await getDb();
     const rows = await db
-        .collection<MongoSpendEntryDoc>('spend_entries')
+        .collection<MongoSpendEntryDoc>(COLLECTIONS.spendEntries)
         .find({ userid, period, period_start: window.start })
         .sort({ category: 1 })
         .toArray();
@@ -65,7 +58,7 @@ export async function saveMongoSpendEntries(
     entries: SpendEntryInput[],
 ): Promise<number> {
     const db = await getDb();
-    const collection = db.collection<MongoSpendEntryDoc>('spend_entries');
+    const collection = db.collection<MongoSpendEntryDoc>(COLLECTIONS.spendEntries);
 
     const categories = entries.map(entry => entry.category);
     const now = new Date();

@@ -8,6 +8,13 @@
 import type { Db, ObjectId } from 'mongodb';
 import { getDb } from './db_mongo';
 import {
+    COLLECTIONS,
+    type ProfileBigPictureDoc,
+    type ProfileDoc,
+    type ProfileExpenseDoc,
+    type TransactionDoc,
+} from './schema';
+import {
     BUCKETS,
     MONTHLY_MULTIPLIER,
     PrototypeRequestError,
@@ -27,50 +34,15 @@ import {
 export const PROTOTYPE_PROFILE_KEY = 'prototype';
 const DEFAULT_DISPLAY_NAME = 'Prototype profile';
 
-type MongoExpenseDoc = {
-    category: string;
-    amount: number;
-    monthly_amount: number;
-    frequency: string;
-    detail: Record<string, unknown>;
-    updated_at: Date;
-};
+// Document shapes come from the schema layer; these aliases keep the names the
+// rest of the store (and import_workbook.ts) already use.
+type MongoExpenseDoc = ProfileExpenseDoc;
+type MongoBigPictureDoc = ProfileBigPictureDoc;
+export type MongoProfileDoc = ProfileDoc;
+export type MongoTransactionDoc = TransactionDoc;
 
-type MongoBigPictureDoc = {
-    category: string;
-    amount: number;
-    monthly_amount: number;
-    frequency: string;
-    updated_at: Date;
-};
-
-export type MongoProfileDoc = {
-    _id?: ObjectId;
-    profile_key: string;
-    userid: ObjectId | null;
-    display_name: string;
-    expenses: MongoExpenseDoc[];
-    big_picture: MongoBigPictureDoc[];
-    next_transaction_id?: number;
-    created_at: Date;
-    updated_at: Date;
-};
-
-export type MongoTransactionDoc = {
-    _id?: ObjectId;
-    transaction_id: number;
-    profile_id: ObjectId | null;
-    category: string;
-    bucket: string;
-    amount: number;
-    spent_on: string;
-    note: string;
-    recurring: boolean;
-    created_at: Date;
-};
-
-const profiles = (db: Db) => db.collection<MongoProfileDoc>('profiles');
-const transactions = (db: Db) => db.collection<MongoTransactionDoc>('transactions');
+const profiles = (db: Db) => db.collection<MongoProfileDoc>(COLLECTIONS.profiles);
+const transactions = (db: Db) => db.collection<MongoTransactionDoc>(COLLECTIONS.transactions);
 
 function asExpenseRow(row: MongoExpenseDoc): ExpenseRow {
     const amount = toNumber(row.amount);

@@ -349,11 +349,23 @@ async function start(): Promise<void> {
             console.log('Mongo store ready — dashboard data and accounts live in MongoDB.');
         })
         .catch((err) => {
+            const reset = /ECONNRESET|ETIMEDOUT|ENOTFOUND|MongoServerSelectionError|MongoNetworkError/i
+                .test(String((err as { message?: string })?.message ?? err));
             console.error(
                 'Mongo setup failed — the dashboard will run in demo mode from its workbook ' +
-                'until Mongo is reachable. Check database/mongo_connection_info.env.',
-                err
+                'until Mongo is reachable. Check database/mongo_connection_info.env.'
             );
+            if (reset) {
+                // The usual cause at school: client-isolated wifi resets the
+                // Atlas TLS handshake, so a perfectly good link still fails.
+                console.error(
+                    'If this is school/guest wifi, that is expected: client isolation blocks ' +
+                    'MongoDB traffic (TLS reset on port 27017) even though the hostname resolves. ' +
+                    'Use a phone hotspot or non-isolated network, point MONGO_URI at a local ' +
+                    'mongod, or run with H2M_DEMO=1 to skip Mongo on purpose.'
+                );
+            }
+            console.error(err);
         });
 }
 

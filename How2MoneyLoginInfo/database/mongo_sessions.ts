@@ -8,18 +8,12 @@
 import crypto from 'crypto';
 import { ObjectId } from 'mongodb';
 import { getDb } from './db_mongo';
+import { COLLECTIONS, type SessionDoc } from './schema';
 
 export const SESSION_COOKIE = 'h2m_session';
 export const SESSION_TTL_DAYS = 30;
 
 export type SessionUser = { id: string; name: string; email: string };
-
-type SessionDoc = {
-    session_id: string;
-    userid: ObjectId;
-    expires_at: Date;
-    created_at: Date;
-};
 
 type SessionUserDoc = {
     _id?: ObjectId;
@@ -37,7 +31,7 @@ export async function createSession(userid: string): Promise<{ token: string; ex
     }
 
     const db = await getDb();
-    await db.collection<SessionDoc>('sessions').insertOne({
+    await db.collection<SessionDoc>(COLLECTIONS.sessions).insertOne({
         session_id: token,
         userid: new ObjectId(userid),
         expires_at: expiresAt,
@@ -52,13 +46,13 @@ export async function getSessionUser(token: string | undefined): Promise<Session
     if (!token) return null;
 
     const db = await getDb();
-    const session = await db.collection<SessionDoc>('sessions').findOne({
+    const session = await db.collection<SessionDoc>(COLLECTIONS.sessions).findOne({
         session_id: token,
         expires_at: { $gt: new Date() },
     });
     if (!session) return null;
 
-    const user = await db.collection<SessionUserDoc>('users').findOne({ _id: session.userid });
+    const user = await db.collection<SessionUserDoc>(COLLECTIONS.users).findOne({ _id: session.userid });
     if (!user?._id) return null;
 
     return {
@@ -71,12 +65,12 @@ export async function getSessionUser(token: string | undefined): Promise<Session
 export async function deleteSession(token: string | undefined): Promise<void> {
     if (!token) return;
     const db = await getDb();
-    await db.collection<SessionDoc>('sessions').deleteOne({ session_id: token });
+    await db.collection<SessionDoc>(COLLECTIONS.sessions).deleteOne({ session_id: token });
 }
 
 // Housekeeping: drop sessions that have expired. Called on login so it
 // doesn't need a background job. The TTL index also handles this eventually.
 export async function purgeExpiredSessions(): Promise<void> {
     const db = await getDb();
-    await db.collection<SessionDoc>('sessions').deleteMany({ expires_at: { $lte: new Date() } });
+    await db.collection<SessionDoc>(COLLECTIONS.sessions).deleteMany({ expires_at: { $lte: new Date() } });
 }
