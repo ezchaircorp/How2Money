@@ -56,11 +56,11 @@ import {
 import { nextPeriodWindow } from './database/db_spend';
 import type { Period, SpendEntryInput } from './database/db_spend';
 import {
+    SpendValidationError,
     initMongoUserStore,
     listMongoSpendEntries,
     listMongoSpendEntriesForWindow,
     saveMongoSpendEntries,
-    syncDemoProfileToMongo,
 } from './database/db_mongo_store';
 import {
     BIG_PICTURE_CATEGORIES,
@@ -880,6 +880,9 @@ app.post('/api/spend', async (req, res) => {
                 period_end: window.end,
             });
         } catch (err) {
+            if (err instanceof SpendValidationError) {
+                return res.status(400).json({ ok: false, error: err.message });
+            }
             // Mongo is the only store for spend entries, but a failed save
             // still answers politely instead of erroring the page — the
             // warning flag tells anyone watching the payload.

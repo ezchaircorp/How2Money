@@ -297,6 +297,66 @@ export async function listMongoSpendEntriesForWindow(
     return rows.map(asStoredSpendEntry);
 }
 
+/* ─────────────────────────────────────────────────
+   Input checks for spend saves
+───────────────────────────────────────────────── */
+
+// Thrown when a spend save is rejected before anything touches the database.
+export class SpendValidationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'SpendValidationError';
+    }
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function isRealDay(value: unknown): value is string {
+    if (typeof value !== 'string' || !ISO_DAY.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+// Checks a whole save up front, so a bad payload writes nothing at all.
+// Returns the entries with amounts rounded to cents.
+export function validateSpendSave(
+    userid: number,
+    period: string,
+    window: PeriodWindow,
+    entries: SpendEntryInput[],
+): SpendEntryInput[] {
+    if (!Number.isSafeInteger(userid) || userid <= 0) {
+        throw new SpendValidationError('userid must be a positive whole number.');
+    }
+    if (period !== 'week' && period !== 'month') {
+        throw new SpendValidationError('period must be "week" or "month".');
+    }
+    if (!isRealDay(window?.start) || !isRealDay(window?.end) || window.start > window.end) {
+        throw new SpendValidationError('The period window needs a real start and end date, in order.');
+    }
+    if (!Array.isArray(entries)) {
+        throw new SpendValidationError('entries must be a list.');
+    }
+
+    const seen = new Set<string>();
+    return entries.map((entry) => {
+        const category = typeof entry?.category === 'string' ? entry.category.trim() : '';
+        if (!category) {
+            throw new SpendValidationError('Every entry needs a category.');
+        }
+        if (seen.has(category)) {
+            throw new SpendValidationError(`${category} is listed more than once.`);
+        }
+        seen.add(category);
+
+        const amount = entry.amount;
+        if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+            throw new SpendValidationError(`The amount for ${category} must be zero or more.`);
+        }
+        return { category, amount: Math.round(amount * 100) / 100 };
+    });
+}
+
 // Saves the whole window: rows in the payload are upserted, rows that are no
 // longer in the payload are dropped — the same window-replace rule the
 // Postgres version used. bulkWrite is not atomic on a standalone mongod, but
@@ -307,10 +367,13 @@ export async function saveMongoSpendEntries(
     window: PeriodWindow,
     entries: SpendEntryInput[],
 ): Promise<number> {
+    // Reject bad input before connecting, so nothing is half-written.
+    const checked = validateSpendSave(userid, period, window, entries);
+
     const db = await getDb();
     const collection = db.collection<MongoSpendEntryDoc>('spend_entries');
 
-    const categories = entries.map((entry) => entry.category);
+    const categories = checked.map((entry) => entry.category);
     const now = new Date();
 
     const operations = [
@@ -324,7 +387,7 @@ export async function saveMongoSpendEntries(
                 },
             },
         },
-        ...entries.map((entry) => ({
+        ...checked.map((entry) => ({
             replaceOne: {
                 filter: {
                     userid,
@@ -347,5 +410,5 @@ export async function saveMongoSpendEntries(
     ];
 
     await collection.bulkWrite(operations, { ordered: false });
-    return entries.length;
+    return checked.length;
 }
