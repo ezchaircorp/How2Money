@@ -33,6 +33,13 @@ const state = {
   transactions: [],
   bigPicture: { entries: [], totals: {} },
   advice: null,
+  // Tax starts as an estimate from income. Once the person edits the tax row,
+  // taxDirty keeps the edit when other actions reload the profile, and
+  // taxEstimated says whether the server currently has a manual override.
+  taxRates: null,
+  taxDirty: false,
+  taxEstimated: true,
+  taxFrequency: 'monthly',
   // 'mongo' normally; 'demo' when the server fell back to the workbook.
   mode: 'mongo',
   statsPeriod: 'month',
@@ -83,6 +90,11 @@ const BIG_PICTURE_FIELDS = [
     category: 'income', label: 'Income',
     inputId: 'bigPictureIncome', frequencyId: 'bigPictureIncomeFreq',
     monthlyId: 'bigPictureIncomeMonthly',
+  },
+  {
+    category: 'tax', label: 'Tax',
+    inputId: 'bigPictureTax', frequencyId: 'bigPictureTaxFreq',
+    monthlyId: 'bigPictureTaxMonthly',
   },
   {
     category: 'debt_payment', label: 'Debt payments',
@@ -649,7 +661,9 @@ function renderStatsSummary(totals) {
       label: 'Budget',
       value: money.format(expected),
       sub: totals.budgetSource === 'big_picture'
-          ? 'From the Big Picture plan'
+          ? (num(totals.tax) > 0
+              ? `Big Picture, after ${totals.taxEstimated ? 'estimated ' : ''}${money.format(num(totals.tax))} tax`
+              : 'From the Big Picture plan')
           : expected > 0 ? 'From the monthly setup' : 'Set a budget in Big Picture',
       cls: '',
     },
@@ -755,6 +769,10 @@ function renderProfile() {
   const bigPictureBudget = bigPictureTotals.configured
       ? money.format(num(bigPictureTotals.budget))
       : 'Not set';
+  const tax = num(bigPictureTotals.tax);
+  const taxText = tax > 0
+      ? `${money.format(tax)} / mo (${bigPictureTotals.tax_estimated ? 'estimated' : 'custom'})`
+      : 'Not set';
 
   document.getElementById('profileName').textContent = profile.display_name || 'Prototype profile';
   document.getElementById('profileEmail').textContent = 'Shared demo profile — no account needed.';
@@ -765,6 +783,7 @@ function renderProfile() {
   const rows = [
     ['Mode', 'Prototype (shared)'],
     ['Big Picture budget', bigPictureBudget],
+    ['Tax', taxText],
     ['Expected per month', money.format(num(profile.total_monthly))],
     ['Actual this month', money.format(num(profile.actual_month))],
     ['Transactions this month', String(Number(profile.transaction_count) || 0)],
@@ -1073,6 +1092,24 @@ function bigPictureEntry(category) {
   return entries.find(entry => entry.category === category) || null;
 }
 
+// Live estimate for the tax row while income is being edited. The server does
+// the same arithmetic when the profile is loaded or saved; the shared tax.js
+// keeps the two from drifting.
+function estimateMonthlyTax(monthlyIncome) {
+  if (window.H2MTax && state.taxRates) {
+    return window.H2MTax.estimateMonthlyTax(state.taxRates, monthlyIncome).monthly;
+  }
+  return num(state.bigPicture?.totals?.estimated_tax);
+}
+
+function monthlyValueOf(category) {
+  const field = BIG_PICTURE_FIELDS.find(entry => entry.category === category);
+  if (!field) return 0;
+  const amount = num(document.getElementById(field.inputId)?.value);
+  const frequency = document.getElementById(field.frequencyId)?.value;
+  return amount * (MONTHLY_MULTIPLIER[frequency] ?? 1);
+}
+
 // Unsaved planner inputs survive a transaction add/remove, just like the
 // monthly setup drafts.
 function captureBigPictureDrafts() {
@@ -1087,6 +1124,13 @@ function captureBigPictureDrafts() {
 }
 
 function renderBigPicture(drafts = null) {
+  // A fresh payload resets the tax state. Preserved drafts keep the person's
+  // unsaved tax edit (and its dirty flag) across transaction adds/removes.
+  if (!drafts) {
+    state.taxEstimated = !bigPictureEntry('tax');
+    state.taxDirty = false;
+  }
+
   for (const field of BIG_PICTURE_FIELDS) {
     const input = document.getElementById(field.inputId);
     const frequency = document.getElementById(field.frequencyId);
@@ -1094,11 +1138,22 @@ function renderBigPicture(drafts = null) {
 
     const entry = bigPictureEntry(field.category);
     const draft = drafts ? drafts.get(field.category) : null;
-    const amount = draft ? num(draft.amount) : num(entry?.amount);
-    input.value = amount > 0 ? amount.toFixed(2) : '';
-    frequency.value = draft
+
+    let amount = draft ? num(draft.amount) : num(entry?.amount);
+    let frequencyValue = draft
         ? draft.frequency
         : (entry?.frequency === 'yearly' ? 'yearly' : 'monthly');
+
+    // No saved tax row means the server is estimating it. Show that estimate
+    // as a normal monthly amount until the person edits the row.
+    if (field.category === 'tax' && !draft && !entry) {
+      amount = num(state.bigPicture?.totals?.estimated_tax);
+      frequencyValue = 'monthly';
+    }
+
+    input.value = amount > 0 ? amount.toFixed(2) : '';
+    frequency.value = frequencyValue;
+    if (field.category === 'tax') state.taxFrequency = frequencyValue;
   }
 
   updateBigPictureSummary();
@@ -1121,6 +1176,14 @@ function bigPictureFormValues() {
 }
 
 function updateBigPictureSummary() {
+  // While the tax row is still on the estimate, keep it in step with income as
+  // the person types. Once edited, the number is theirs and stays put.
+  if (state.taxEstimated && !state.taxDirty) {
+    const estimate = estimateMonthlyTax(monthlyValueOf('income'));
+    const taxInput = document.getElementById('bigPictureTax');
+    if (taxInput) taxInput.value = estimate > 0 ? estimate.toFixed(2) : '';
+  }
+
   const values = bigPictureFormValues();
 
   for (const field of BIG_PICTURE_FIELDS) {
@@ -1129,6 +1192,7 @@ function updateBigPictureSummary() {
   }
 
   const income = values.income.monthly;
+  const tax = values.tax.monthly;
   const recurring =
       values.debt_payment.monthly +
       values.schooling.monthly +
@@ -1137,12 +1201,29 @@ function updateBigPictureSummary() {
       values.insurance_auto.monthly +
       values.insurance_other.monthly;
   const savings = values.savings.monthly;
-  const budget = income - recurring - savings;
+  const budget = income - tax - recurring - savings;
 
   document.getElementById('bigPictureIncomeValue').textContent = money.format(income);
+  document.getElementById('bigPictureTaxValue').textContent = money.format(tax);
   document.getElementById('bigPictureRecurringValue').textContent = money.format(recurring);
   document.getElementById('bigPictureSavingsValue').textContent = money.format(savings);
   document.getElementById('bigPictureBudgetValue').textContent = money.format(budget);
+
+  const estimated = state.taxEstimated && !state.taxDirty;
+  document.getElementById('bigPictureTaxSource').textContent =
+      estimated ? 'estimated from income' : 'custom amount';
+  const taxBadge = document.getElementById('bigPictureTaxBadge');
+  if (taxBadge) taxBadge.textContent = estimated ? 'estimated' : 'custom';
+
+  const taxNote = document.getElementById('bigPictureTaxNote');
+  if (taxNote) {
+    taxNote.textContent = estimated
+        ? 'Estimated from your income'
+        : 'Custom amount — clear it or use “Use estimate” to go back';
+  }
+
+  const resetTax = document.getElementById('resetTaxBtn');
+  if (resetTax) resetTax.hidden = estimated;
 
   const budgetCard = document.getElementById('bigPictureBudgetCard');
   budgetCard.classList.toggle('over', budget < -0.005);
@@ -1150,7 +1231,7 @@ function updateBigPictureSummary() {
   const formula = document.getElementById('bigPictureFormula');
   const hint = document.getElementById('bigPictureHint');
 
-  if (income <= 0 && recurring <= 0 && savings <= 0) {
+  if (income <= 0 && tax <= 0 && recurring <= 0 && savings <= 0) {
     formula.className = 'big-picture-formula';
     formula.textContent = 'Enter income to calculate the monthly budget.';
     hint.textContent = 'No planner amounts yet';
@@ -1160,8 +1241,9 @@ function updateBigPictureSummary() {
   if (budget < -0.005) {
     formula.className = 'big-picture-formula negative';
     formula.textContent =
-        `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
-        `${money.format(savings)} savings = ${money.format(budget)} budget. ` +
+        `${money.format(income)} income − ${money.format(tax)} tax − ` +
+        `${money.format(recurring)} recurring payments − ${money.format(savings)} savings = ` +
+        `${money.format(budget)} budget. ` +
         'That is over income, so the Stats tab treats the budget as $0 until this is balanced.';
     hint.textContent = 'Budget is over income';
     return;
@@ -1169,8 +1251,9 @@ function updateBigPictureSummary() {
 
   formula.className = 'big-picture-formula';
   formula.textContent =
-      `${money.format(income)} income − ${money.format(recurring)} recurring payments − ` +
-      `${money.format(savings)} savings = ${money.format(budget)} budget per month.`;
+      `${money.format(income)} income − ${money.format(tax)} tax − ` +
+      `${money.format(recurring)} recurring payments − ${money.format(savings)} savings = ` +
+      `${money.format(budget)} budget per month.`;
   hint.textContent = 'This budget drives the Stats tab';
 }
 
@@ -1193,12 +1276,14 @@ function fallbackPayload() {
     big_picture: {
       entries: [],
       totals: {
-        income: 0, debt_payment: 0, schooling: 0, insurance: 0,
+        income: 0, tax: 0, tax_estimated: true, tax_source: 'estimated', estimated_tax: 0,
+        debt_payment: 0, schooling: 0, insurance: 0,
         insurance_health: 0, insurance_home: 0, insurance_auto: 0, insurance_other: 0,
         recurring: 0, savings: 0, budget: 0, configured: false,
       },
     },
     advice: null,
+    tax_rates: null,
     transactions: [],
   };
 }
@@ -1221,6 +1306,7 @@ function applyProfile(data, options = {}) {
   state.buckets = Array.isArray(data.buckets) && data.buckets.length ? data.buckets : FALLBACK_BUCKETS;
   state.monthly = normalizeMonthly(data.monthly, state.buckets, drafts);
   state.bigPicture = data.big_picture || { entries: [], totals: {} };
+  state.taxRates = data.tax_rates || state.taxRates;
   state.transactions = Array.isArray(data.transactions) ? data.transactions : [];
   state.advice = data.advice || null;
 
@@ -1465,11 +1551,39 @@ document.getElementById('saveMonthlyBtn').addEventListener('click', async () => 
 for (const eventName of ['input', 'change']) {
   document.getElementById('bigPictureForm').addEventListener(eventName, (event) => {
     const target = event.target;
-    if (target instanceof Element && target.matches('[data-big-category], [data-big-frequency]')) {
-      updateBigPictureSummary();
+    if (!(target instanceof Element)) return;
+    if (!target.matches('[data-big-category], [data-big-frequency]')) return;
+
+    const taxInput = document.getElementById('bigPictureTax');
+    const taxFrequency = document.getElementById('bigPictureTaxFreq');
+
+    // Changing the tax row's frequency converts the displayed number so the
+    // underlying monthly amount stays the same. The other rows keep the plain
+    // "this number is monthly/yearly" interpretation.
+    if (target === taxFrequency && taxFrequency.value !== state.taxFrequency) {
+      const previous = MONTHLY_MULTIPLIER[state.taxFrequency] ?? 1;
+      const next = MONTHLY_MULTIPLIER[taxFrequency.value] ?? 1;
+      const monthly = num(taxInput?.value) * previous;
+      if (taxInput) taxInput.value = monthly > 0 ? (monthly / next).toFixed(2) : '';
+      state.taxFrequency = taxFrequency.value;
     }
+
+    if (target === taxInput || target === taxFrequency) state.taxDirty = true;
+    updateBigPictureSummary();
   });
 }
+
+document.getElementById('resetTaxBtn').addEventListener('click', () => {
+  const estimate = estimateMonthlyTax(monthlyValueOf('income'));
+  const taxInput = document.getElementById('bigPictureTax');
+  const taxFrequency = document.getElementById('bigPictureTaxFreq');
+  if (taxInput) taxInput.value = estimate > 0 ? estimate.toFixed(2) : '';
+  if (taxFrequency) taxFrequency.value = 'monthly';
+  state.taxFrequency = 'monthly';
+  state.taxDirty = false;
+  state.taxEstimated = true;
+  updateBigPictureSummary();
+});
 
 document.getElementById('bigPictureForm').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1483,6 +1597,9 @@ document.getElementById('bigPictureForm').addEventListener('submit', async (even
   for (const field of BIG_PICTURE_FIELDS) {
     const value = values[field.category];
     if (!(value.amount > 0)) continue;
+    // Leave an untouched estimate out of the save so the server keeps deriving
+    // it from income. A saved row is a custom override, and edits are sent.
+    if (field.category === 'tax' && state.taxEstimated && !state.taxDirty) continue;
     entries.push({
       category: field.category,
       amount: value.amount,

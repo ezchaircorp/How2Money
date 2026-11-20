@@ -86,6 +86,7 @@
             <option>$100,000+</option>
             <option>Prefer not to say</option>
           </select>
+          <p class="form-hint">Your results use this range to estimate federal and state/local income tax, then compare your expenses with the take-home pay that is left.</p>
         </div>
 
         <hr class="form-divider" />
@@ -432,6 +433,8 @@
 
         <div class="meter-card" id="meterCard"></div>
 
+        <div class="tax-card" id="taxCard" hidden></div>
+
         <div class="chart-grid">
           <div class="chart-card">
             <h3>Necessities vs junk</h3>
@@ -466,6 +469,7 @@
     </div>
   </footer>
 
+  <script src="tax.js"></script>
   <script src="assessment.js"></script>
 
 </body>

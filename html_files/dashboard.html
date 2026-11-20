@@ -142,12 +142,12 @@
           </div>
           <p class="hint" id="bigPictureHint"></p>
         </div>
-        <p class="form-hint">Start with the money coming in. Yearly amounts are divided by 12, then debt, schooling, insurance, and savings come out of income. Insurance is split into health, home, auto, and other. The result is the budget used on the Stats tab.</p>
+        <p class="form-hint">Start with your gross income, before tax. Yearly amounts are divided by 12, then tax, debt, schooling, insurance, and savings come out of income. Tax starts as an estimate based on your income and can be replaced with your own number. Insurance is split into health, home, auto, and other. The result is the budget used on the Stats tab.</p>
 
         <form id="bigPictureForm" novalidate>
           <div class="big-picture-list">
             <div class="big-picture-row">
-              <label class="big-picture-label" for="bigPictureIncome">Income</label>
+              <label class="big-picture-label" for="bigPictureIncome">Gross income</label>
               <div class="big-picture-input">
                 <span class="money-prefix" aria-hidden="true">$</span>
                 <input type="number" id="bigPictureIncome" data-big-category="income"
@@ -160,6 +160,26 @@
                 <option value="yearly">Yearly</option>
               </select>
               <span class="big-picture-monthly" id="bigPictureIncomeMonthly">$0.00 / mo</span>
+            </div>
+
+            <div class="big-picture-row big-picture-tax-row">
+              <label class="big-picture-label" for="bigPictureTax">
+                Tax <span class="optional" id="bigPictureTaxBadge">estimated</span>
+                <span class="big-picture-note" id="bigPictureTaxNote">Estimated from your income</span>
+                <button type="button" class="link-reset" id="resetTaxBtn" hidden>Use estimate</button>
+              </label>
+              <div class="big-picture-input">
+                <span class="money-prefix" aria-hidden="true">$</span>
+                <input type="number" id="bigPictureTax" data-big-category="tax"
+                       min="0" step="0.01" inputmode="decimal" placeholder="0.00"
+                       aria-describedby="bigPictureTaxMonthly" />
+              </div>
+              <select id="bigPictureTaxFreq" class="big-picture-freq" data-big-frequency="tax"
+                      aria-label="Tax frequency">
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+              <span class="big-picture-monthly" id="bigPictureTaxMonthly">$0.00 / mo</span>
             </div>
 
             <div class="big-picture-row">
@@ -292,6 +312,11 @@
               <span class="stat-sub">per month</span>
             </div>
             <div class="stat-card">
+              <span class="stat-label">Tax</span>
+              <span class="stat-value" id="bigPictureTaxValue">$0.00</span>
+              <span class="stat-sub" id="bigPictureTaxSource">estimated</span>
+            </div>
+            <div class="stat-card">
               <span class="stat-label">Recurring payments</span>
               <span class="stat-value" id="bigPictureRecurringValue">$0.00</span>
               <span class="stat-sub">debt + schooling + insurance</span>
@@ -304,7 +329,7 @@
             <div class="stat-card" id="bigPictureBudgetCard">
               <span class="stat-label">Budget</span>
               <span class="stat-value" id="bigPictureBudgetValue">$0.00</span>
-              <span class="stat-sub">income − recurring − savings</span>
+              <span class="stat-sub">income − tax − recurring − savings</span>
             </div>
           </div>
 
@@ -436,6 +461,7 @@
   </div>
 </div>
 
+<script src="tax.js"></script>
 <script src="dashboard.js"></script>
 
 </body>
