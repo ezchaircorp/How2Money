@@ -34,6 +34,24 @@ import {
 export const PROTOTYPE_PROFILE_KEY = 'prototype';
 const DEFAULT_DISPLAY_NAME = 'Prototype profile';
 
+// Whose dashboard a call reads or writes. Signed-in users each get their own
+// profile document (profile_key "user:<id>"); everyone else shares the demo.
+export type ProfileOwner = {
+    key: string;
+    userid: ObjectId | null;
+    displayName: string;
+};
+
+export const SHARED_DEMO_OWNER: ProfileOwner = {
+    key: PROTOTYPE_PROFILE_KEY,
+    userid: null,
+    displayName: DEFAULT_DISPLAY_NAME,
+};
+
+export function userProfileKey(userid: string): string {
+    return `user:${userid}`;
+}
+
 // Document shapes come from the schema layer; these aliases keep the names the
 // rest of the store (and import_workbook.ts) already use.
 type MongoExpenseDoc = ProfileExpenseDoc;
@@ -85,15 +103,15 @@ export async function hasPrototypeProfile(): Promise<boolean> {
 
 type ProfileWithId = MongoProfileDoc & { _id: ObjectId };
 
-async function ensureProfile(db: Db): Promise<ProfileWithId> {
+async function ensureProfile(db: Db, owner: ProfileOwner = SHARED_DEMO_OWNER): Promise<ProfileWithId> {
     const now = new Date();
     const doc = await profiles(db).findOneAndUpdate(
-        { profile_key: PROTOTYPE_PROFILE_KEY },
+        { profile_key: owner.key },
         {
             $setOnInsert: {
-                profile_key: PROTOTYPE_PROFILE_KEY,
-                userid: null,
-                display_name: DEFAULT_DISPLAY_NAME,
+                profile_key: owner.key,
+                userid: owner.userid,
+                display_name: owner.displayName,
                 expenses: [],
                 big_picture: [],
                 next_transaction_id: 1,
@@ -103,14 +121,14 @@ async function ensureProfile(db: Db): Promise<ProfileWithId> {
         },
         { upsert: true, returnDocument: 'after' }
     );
-    if (!doc?._id) throw new Error('could not create the prototype profile');
+    if (!doc?._id) throw new Error(`could not create the profile ${owner.key}`);
     return doc as ProfileWithId;
 }
 
 // Reads never create the profile, so opening the dashboard changes nothing.
-export async function getProfileData(): Promise<ProfileData> {
+export async function getProfileData(owner: ProfileOwner = SHARED_DEMO_OWNER): Promise<ProfileData> {
     const db = await getDb();
-    const profile = await profiles(db).findOne({ profile_key: PROTOTYPE_PROFILE_KEY });
+    const profile = await profiles(db).findOne({ profile_key: owner.key });
     if (!profile?._id) {
         return { profile: null, expenses: [], transactions: [], bigPicture: [] };
     }
@@ -134,9 +152,12 @@ export async function getProfileData(): Promise<ProfileData> {
 // Replace the whole expected setup. A bucket left out of the list is removed,
 // which is how clearing an input and saving actually clears it. The saved
 // breakdown detail is kept because the dashboard does not send it back.
-export async function replaceMonthlySetup(entries: MonthlySetupEntry[]): Promise<void> {
+export async function replaceMonthlySetup(
+    entries: MonthlySetupEntry[],
+    owner: ProfileOwner = SHARED_DEMO_OWNER,
+): Promise<void> {
     const db = await getDb();
-    const profile = await ensureProfile(db);
+    const profile = await ensureProfile(db, owner);
     const now = new Date();
     const previous = profile.expenses ?? [];
 
@@ -157,9 +178,12 @@ export async function replaceMonthlySetup(entries: MonthlySetupEntry[]): Promise
 
 // Replace the five Big Picture rows in one save. Omitting a category removes
 // it, so clearing everything falls back to the monthly setup total in stats.
-export async function replaceBigPicture(entries: BigPictureEntry[]): Promise<void> {
+export async function replaceBigPicture(
+    entries: BigPictureEntry[],
+    owner: ProfileOwner = SHARED_DEMO_OWNER,
+): Promise<void> {
     const db = await getDb();
-    const profile = await ensureProfile(db);
+    const profile = await ensureProfile(db, owner);
     const now = new Date();
 
     const bigPicture: MongoBigPictureDoc[] = entries.map(entry => ({
@@ -193,9 +217,12 @@ async function nextTransactionId(db: Db, profile: ProfileWithId): Promise<number
     return next;
 }
 
-export async function addTransaction(input: NewTransaction): Promise<void> {
+export async function addTransaction(
+    input: NewTransaction,
+    owner: ProfileOwner = SHARED_DEMO_OWNER,
+): Promise<void> {
     const db = await getDb();
-    const profile = await ensureProfile(db);
+    const profile = await ensureProfile(db, owner);
 
     // The unique (profile_id, transaction_id) index is the real guard. Two
     // quick adds can race for the same id, so retry with a freshly computed one
@@ -227,9 +254,12 @@ export async function addTransaction(input: NewTransaction): Promise<void> {
     );
 }
 
-export async function removeTransaction(transactionId: string): Promise<boolean> {
+export async function removeTransaction(
+    transactionId: string,
+    owner: ProfileOwner = SHARED_DEMO_OWNER,
+): Promise<boolean> {
     const db = await getDb();
-    const profile = await profiles(db).findOne({ profile_key: PROTOTYPE_PROFILE_KEY });
+    const profile = await profiles(db).findOne({ profile_key: owner.key });
     if (!profile?._id) return false;
 
     const numeric = Number(transactionId);

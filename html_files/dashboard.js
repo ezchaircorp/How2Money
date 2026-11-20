@@ -756,14 +756,23 @@ function renderProfile() {
       ? money.format(num(bigPictureTotals.budget))
       : 'Not set';
 
-  document.getElementById('profileName').textContent = profile.display_name || 'Prototype profile';
-  document.getElementById('profileEmail').textContent = 'Shared demo profile — no account needed.';
+  // Signed in: this is the person's own profile. Otherwise the shared demo.
+  const account = state.account;
+  document.getElementById('profileName').textContent = account
+    ? account.name
+    : (profile.display_name || 'Prototype profile');
+  document.getElementById('profileEmail').textContent = account
+    ? account.email
+    : 'Shared demo profile. Log in to keep your own budget.';
+  for (const note of document.querySelectorAll('.prototype-note, .mode-note')) {
+    note.style.display = account ? 'none' : '';
+  }
 
   const list = document.getElementById('profileList');
   list.innerHTML = '';
 
   const rows = [
-    ['Mode', 'Prototype (shared)'],
+    ['Mode', account ? 'Your account' : 'Shared demo'],
     ['Big Picture budget', bigPictureBudget],
     ['Expected per month', money.format(num(profile.total_monthly))],
     ['Actual this month', money.format(num(profile.actual_month))],
@@ -1217,6 +1226,7 @@ function applyProfile(data, options = {}) {
   const bigPictureDrafts = options.preserveBigPictureDrafts ? captureBigPictureDrafts() : null;
 
   state.profile = data.profile || {};
+  state.account = data.account || null;
   setMode(data.mode);
   state.buckets = Array.isArray(data.buckets) && data.buckets.length ? data.buckets : FALLBACK_BUCKETS;
   state.monthly = normalizeMonthly(data.monthly, state.buckets, drafts);
