@@ -23,9 +23,16 @@ form.addEventListener('submit', async (e) => {
   const name = form.name.value.trim();
   const email = form.email.value.trim();
   const password = form.password.value;
+  const confirm = form.confirm.value;
 
   if (!name || !email || !password) {
     showStatus('error', 'Please fill in your name, email, and password.');
+    return;
+  }
+
+  if (password !== confirm) {
+    showStatus('error', 'The two passwords do not match.');
+    form.confirm.classList.add('invalid');
     return;
   }
 

@@ -7,7 +7,9 @@
 // forth between two data sets.
 
 import type { Request, Response } from 'express';
+import { ObjectId } from 'mongodb';
 import { getDb } from './db_mongo';
+import { SESSION_COOKIE, getSessionUser, type SessionUser } from './mongo_sessions';
 import { FORM_BUCKETS } from './expense_categories';
 import {
     BIG_PICTURE_CATEGORIES,
@@ -30,6 +32,9 @@ import {
     removeTransaction as mongoRemoveTransaction,
     replaceBigPicture as mongoReplaceBigPicture,
     replaceMonthlySetup as mongoReplaceMonthlySetup,
+    SHARED_DEMO_OWNER,
+    userProfileKey,
+    type ProfileOwner,
 } from './prototype_mongo_store';
 import {
     addTransaction as demoAddTransaction,
@@ -118,6 +123,33 @@ async function withBackend<T>(operation: (backend: PrototypeMode) => Promise<T>)
         }
         throw err;
     }
+}
+
+/* ── Whose dashboard is this? ── */
+
+function readCookie(req: Request, name: string): string | undefined {
+    for (const part of (req.headers.cookie ?? '').split(';')) {
+        const eq = part.indexOf('=');
+        if (eq !== -1 && part.slice(0, eq).trim() === name) {
+            try {
+                return decodeURIComponent(part.slice(eq + 1).trim());
+            } catch {
+                return undefined;
+            }
+        }
+    }
+    return undefined;
+}
+
+// A signed-in user reads and writes their own profile. Anyone else, or a
+// session that has expired, gets the shared demo profile.
+async function resolveOwner(req: Request): Promise<{ owner: ProfileOwner; account: SessionUser | null }> {
+    const user = await getSessionUser(readCookie(req, SESSION_COOKIE));
+    if (!user || !ObjectId.isValid(user.id)) return { owner: SHARED_DEMO_OWNER, account: null };
+    return {
+        owner: { key: userProfileKey(user.id), userid: new ObjectId(user.id), displayName: user.name },
+        account: user,
+    };
 }
 
 /* ── Request parsing ── */
@@ -246,15 +278,26 @@ export async function handlePrototypeRequest(req: Request, res: Response): Promi
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!url.pathname.startsWith('/api/prototype/')) return false;
 
+    // Looked up once per request, and only in Mongo mode: demo mode has no
+    // accounts, so everyone shares the workbook there.
+    let account: SessionUser | null = null;
+    let ownerLookup: Promise<ProfileOwner> | null = null;
+    const owner = () => (ownerLookup ??= resolveOwner(req).then(found => {
+        account = found.account;
+        return found.owner;
+    }));
+    const accountFor = (active: PrototypeMode) =>
+        active === 'mongo' && account ? { name: account.name, email: account.email } : null;
+
     try {
         if (req.method === 'GET' && url.pathname === '/api/prototype/profile') {
             const { mode: active, value } = await withBackend(async backend => {
                 if (backend === 'mongo') {
-                    return profilePayload(await mongoProfileData());
+                    return profilePayload(await mongoProfileData(await owner()));
                 }
                 return demoProfilePayload();
             });
-            sendJson(res, 200, { ok: true, mode: active, ...value });
+            sendJson(res, 200, { ok: true, mode: active, account: accountFor(active), ...value });
             return true;
         }
 
@@ -262,11 +305,11 @@ export async function handlePrototypeRequest(req: Request, res: Response): Promi
             const period = typeof req.query.period === 'string' ? req.query.period : null;
             const { mode: active, value } = await withBackend(async backend => {
                 if (backend === 'mongo') {
-                    return statsPayload(await mongoProfileData(), period);
+                    return statsPayload(await mongoProfileData(await owner()), period);
                 }
                 return demoStatsPayload(period);
             });
-            sendJson(res, 200, { ok: true, mode: active, ...value });
+            sendJson(res, 200, { ok: true, mode: active, account: accountFor(active), ...value });
             return true;
         }
 
@@ -277,13 +320,13 @@ export async function handlePrototypeRequest(req: Request, res: Response): Promi
                 const input = parseTransaction(body);
                 const { mode: active, value } = await withBackend(async backend => {
                     if (backend === 'mongo') {
-                        await mongoAddTransaction(input);
-                        return profilePayload(await mongoProfileData());
+                        await mongoAddTransaction(input, await owner());
+                        return profilePayload(await mongoProfileData(await owner()));
                     }
                     await demoAddTransaction(input);
                     return demoProfilePayload();
                 });
-                sendJson(res, 200, { ok: true, mode: active, ...value });
+                sendJson(res, 200, { ok: true, mode: active, account: accountFor(active), ...value });
                 return true;
             }
 
@@ -291,17 +334,17 @@ export async function handlePrototypeRequest(req: Request, res: Response): Promi
                 const id = parseTransactionId(body);
                 const { mode: active, value } = await withBackend(async backend => {
                     if (backend === 'mongo') {
-                        if (!(await mongoRemoveTransaction(id))) {
+                        if (!(await mongoRemoveTransaction(id, await owner()))) {
                             throw new PrototypeRequestError(404, 'That transaction no longer exists.');
                         }
-                        return profilePayload(await mongoProfileData());
+                        return profilePayload(await mongoProfileData(await owner()));
                     }
                     if (!(await demoRemoveTransaction(id))) {
                         throw new PrototypeRequestError(404, 'That transaction no longer exists.');
                     }
                     return demoProfilePayload();
                 });
-                sendJson(res, 200, { ok: true, mode: active, ...value });
+                sendJson(res, 200, { ok: true, mode: active, account: accountFor(active), ...value });
                 return true;
             }
 
@@ -309,13 +352,13 @@ export async function handlePrototypeRequest(req: Request, res: Response): Promi
                 const entries = parseMonthlySetup(body);
                 const { mode: active, value } = await withBackend(async backend => {
                     if (backend === 'mongo') {
-                        await mongoReplaceMonthlySetup(entries);
-                        return profilePayload(await mongoProfileData());
+                        await mongoReplaceMonthlySetup(entries, await owner());
+                        return profilePayload(await mongoProfileData(await owner()));
                     }
                     await demoSaveMonthlySetup(entries);
                     return demoProfilePayload();
                 });
-                sendJson(res, 200, { ok: true, mode: active, ...value });
+                sendJson(res, 200, { ok: true, mode: active, account: accountFor(active), ...value });
                 return true;
             }
 
@@ -323,13 +366,13 @@ export async function handlePrototypeRequest(req: Request, res: Response): Promi
                 const entries = parseBigPicture(body);
                 const { mode: active, value } = await withBackend(async backend => {
                     if (backend === 'mongo') {
-                        await mongoReplaceBigPicture(entries);
-                        return profilePayload(await mongoProfileData());
+                        await mongoReplaceBigPicture(entries, await owner());
+                        return profilePayload(await mongoProfileData(await owner()));
                     }
                     await demoSaveBigPicture(entries);
                     return demoProfilePayload();
                 });
-                sendJson(res, 200, { ok: true, mode: active, ...value });
+                sendJson(res, 200, { ok: true, mode: active, account: accountFor(active), ...value });
                 return true;
             }
 
