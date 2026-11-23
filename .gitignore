@@ -29,3 +29,6 @@ Thumbs.db
 
 # Per-contributor agent files — each contributor keeps their own AGENTS.md
 AGENTS.md
+
+# NPMRC acces VERY BAD
+.npmrc

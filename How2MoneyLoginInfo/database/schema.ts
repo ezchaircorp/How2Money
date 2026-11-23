@@ -34,7 +34,7 @@ export type UserDoc = {
     username_lower: string;
     email: string;
     email_lower: string;
-    /** bcrypt hash (10 rounds). Absent on the seeded demo account. */
+    /** Argon2id hash (older accounts: bcrypt, upgraded on next login). Absent on the seeded demo account. */
     password_hash?: string;
     name: string;
     created_at: Date;
@@ -160,7 +160,7 @@ export const SCHEMA = {
             username_lower: { kind: 'string', required: true, note: 'Lowercased username; uniqueness key.' },
             email: { kind: 'string', required: true },
             email_lower: { kind: 'string', required: true, note: 'Lowercased email; uniqueness key.' },
-            password_hash: { kind: 'string', note: 'bcrypt hash. Missing on the demo account.' },
+            password_hash: { kind: 'string', note: 'Argon2id hash (bcrypt on accounts not yet upgraded). Missing on the demo account.' },
             name: { kind: 'string', required: true, default: 'username' },
             created_at: { kind: 'date', required: true, default: 'now' },
         },
