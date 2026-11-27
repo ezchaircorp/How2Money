@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import type { Collection, Document, IndexDescription } from 'mongodb';
 import { getDb } from './db_mongo';
-import { COLLECTIONS, SCHEMA_COLLECTIONS, type UserDoc } from './schema';
+import { COLLECTIONS, SCHEMA_COLLECTIONS, type CollectionSpec, type UserDoc } from './schema';
 import {
     hasPrototypeProfile,
     importProfileData,
@@ -65,10 +65,37 @@ async function ensureIndex(
     await collection.createIndex(key, options);
 }
 
+// True when two collations compare text the same way.
+function sameCollation(a: Document | undefined, b: Document | undefined): boolean {
+    return (a?.locale ?? null) === (b?.locale ?? null) && (a?.strength ?? null) === (b?.strength ?? null);
+}
+
+// Creates any collection that has a default collation in schema.ts, so a new
+// database starts out case-insensitive. A collection's collation cannot be
+// changed after it is made, so an existing one without it is left alone and
+// reported: database/migrate_users_collation.ts moves it over.
+export async function ensureCollections(): Promise<CollectionSpec[]> {
+    const db = await getDb();
+    const outdated: CollectionSpec[] = [];
+    for (const spec of SCHEMA_COLLECTIONS) {
+        if (!spec.collation) continue;
+        const [info] = await db.listCollections({ name: spec.name }).toArray();
+        if (!info) {
+            await db.createCollection(spec.name, { collation: spec.collation });
+        } else if (!sameCollation((info as { options?: Document }).options?.collation, spec.collation)) {
+            outdated.push(spec);
+        }
+    }
+    return outdated;
+}
+
 // The indexes come from database/schema.ts, so adding one there is enough.
-export async function ensureIndexes(): Promise<void> {
+// Collections still waiting for the collation migration are skipped: their
+// indexes would be built case-sensitive, and the migration builds them anyway.
+export async function ensureIndexes(skip: CollectionSpec[] = []): Promise<void> {
     const db = await getDb();
     for (const spec of SCHEMA_COLLECTIONS) {
+        if (skip.includes(spec)) continue;
         const collection = db.collection(spec.name);
         for (const index of spec.indexes) {
             await ensureIndex(collection, index.key, index.options ?? {});
@@ -80,12 +107,11 @@ async function seedDemoUser(): Promise<void> {
     const db = await getDb();
     const users = db.collection<UserDoc>(COLLECTIONS.users);
     await users.updateOne(
-        { username_lower: DEMO_USERNAME },
+        { username: DEMO_USERNAME },
         {
             $set: {
                 username: DEMO_USERNAME,
                 email: DEMO_EMAIL,
-                email_lower: DEMO_EMAIL,
                 name: DEMO_DISPLAY_NAME,
             },
             $setOnInsert: { created_at: new Date() },
@@ -108,7 +134,18 @@ async function seedDemoProfile(): Promise<void> {
 }
 
 export async function initMongo(): Promise<void> {
-    await ensureIndexes();
-    await seedDemoUser();
+    const outdated = await ensureCollections();
+    await ensureIndexes(outdated);
+    if (outdated.some(spec => spec.name === COLLECTIONS.users)) {
+        // Leave the old users alone until the migration runs: writing the new
+        // shape into the old collection would trip its old unique indexes.
+        console.error(
+            'The users collection is from before case-insensitive logins. Stop the server and run:\n' +
+            '  node node_modules/tsx/dist/cli.mjs database/migrate_users_collation.ts\n' +
+            'Until then, signing up may fail and logins are case-sensitive.'
+        );
+    } else {
+        await seedDemoUser();
+    }
     await seedDemoProfile();
 }

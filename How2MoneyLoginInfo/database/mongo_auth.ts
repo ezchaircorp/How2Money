@@ -5,7 +5,6 @@
 // the first time they do. The document shape matches the demo user the server
 // seeds at startup, plus password_hash.
 
-import type { ObjectId } from 'mongodb';
 import { getDb } from './db_mongo';
 import { hashPassword, needsRehash, verifyPassword } from './passwords';
 import { COLLECTIONS, type UserDoc } from './schema';
@@ -51,23 +50,33 @@ export async function signup(
     const db = await getDb();
     const users = db.collection<StoredUserDoc>(COLLECTIONS.users);
 
-    if (await users.findOne({ email_lower: email }, { projection: { _id: 1 } })) {
+    // The users collection ignores case (see CASE_INSENSITIVE in schema.ts),
+    // so "Jane" here also finds "JANE" and "jane".
+    if (await users.findOne({ email }, { projection: { _id: 1 } })) {
         return { ok: false, status: 409, error: 'That email is already registered.' };
     }
-    if (await users.findOne({ username_lower: username.toLowerCase() }, { projection: { _id: 1 } })) {
+    if (await users.findOne({ username }, { projection: { _id: 1 } })) {
         return { ok: false, status: 409, error: 'That username already exists.' };
     }
 
     const hash = await hashPassword(password);
-    const inserted = await users.insertOne({
-        username,
-        username_lower: username.toLowerCase(),
-        email,
-        email_lower: email,
-        password_hash: hash,
-        name: username,
-        created_at: new Date(),
-    });
+    let inserted;
+    try {
+        inserted = await users.insertOne({
+            username,
+            email,
+            password_hash: hash,
+            name: username,
+            created_at: new Date(),
+        });
+    } catch (err) {
+        // Two signups for the same name or email at the same moment: the
+        // checks above both pass, and the unique index stops the second.
+        if ((err as { code?: number })?.code === 11000) {
+            return { ok: false, status: 409, error: 'That email or username is already registered.' };
+        }
+        throw err;
+    }
 
     return { ok: true, user: { id: String(inserted.insertedId), name: username, email } };
 }
@@ -81,7 +90,7 @@ export async function login(email: string, password: string): Promise<Result> {
 
     const db = await getDb();
     const users = db.collection<StoredUserDoc>(COLLECTIONS.users);
-    const user = await users.findOne({ email_lower: email });
+    const user = await users.findOne({ email });
 
     // Same message whether the email is missing or the password is wrong,
     // so nobody can probe which emails are registered.

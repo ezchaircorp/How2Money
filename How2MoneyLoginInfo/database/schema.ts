@@ -9,7 +9,7 @@
 // Adding a collection or an index? Do it here. Adding a field? Add it here
 // first, then to the store that writes it.
 
-import type { ObjectId } from 'mongodb';
+import type { CollationOptions, ObjectId } from 'mongodb';
 
 /* ── Collection names ── */
 
@@ -23,6 +23,15 @@ export const COLLECTIONS = {
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
 
+/* ── Collation ── */
+
+// Case-insensitive comparison: "Jane" and "JANE" count as equal (strength 2
+// ignores case but not accents). The users collection is created with this as
+// its default collation, so every query and unique index on it ignores case
+// without any extra code. Existing databases are moved over by
+// database/migrate_users_collation.ts.
+export const CASE_INSENSITIVE: CollationOptions = { locale: 'en', strength: 2 };
+
 /* ── Document types ── */
 
 export type Frequency = 'monthly' | 'yearly' | 'weekly';
@@ -30,10 +39,10 @@ export type SpendPeriod = 'week' | 'month';
 
 export type UserDoc = {
     _id?: ObjectId;
+    /** Display spelling, e.g. "Jane". Unique ignoring case (collection collation). */
     username: string;
-    username_lower: string;
+    /** Stored lowercased. Unique ignoring case (collection collation). */
     email: string;
-    email_lower: string;
     /** Argon2id hash (older accounts: bcrypt, upgraded on next login). Absent on the seeded demo account. */
     password_hash?: string;
     name: string;
@@ -146,6 +155,8 @@ export type IndexSpec = {
 export type CollectionSpec = {
     name: CollectionName;
     description: string;
+    /** Default collation, set when the collection is created. */
+    collation?: CollationOptions;
     fields: Record<string, FieldSpec>;
     indexes: IndexSpec[];
 };
@@ -153,20 +164,21 @@ export type CollectionSpec = {
 export const SCHEMA = {
     users: {
         name: COLLECTIONS.users,
-        description: 'One document per account. The demo account is seeded at startup.',
+        description:
+            'One document per account. The demo account is seeded at startup. ' +
+            'Created with a case-insensitive default collation, so lookups and uniqueness ignore case.',
+        collation: CASE_INSENSITIVE,
         fields: {
             _id: { kind: 'objectId', note: 'Mongo id.' },
-            username: { kind: 'string', required: true },
-            username_lower: { kind: 'string', required: true, note: 'Lowercased username; uniqueness key.' },
-            email: { kind: 'string', required: true },
-            email_lower: { kind: 'string', required: true, note: 'Lowercased email; uniqueness key.' },
+            username: { kind: 'string', required: true, note: 'Display spelling; unique ignoring case.' },
+            email: { kind: 'string', required: true, note: 'Stored lowercased; unique ignoring case.' },
             password_hash: { kind: 'string', note: 'Argon2id hash (bcrypt on accounts not yet upgraded). Missing on the demo account.' },
             name: { kind: 'string', required: true, default: 'username' },
             created_at: { kind: 'date', required: true, default: 'now' },
         },
         indexes: [
-            { key: { username_lower: 1 }, options: { unique: true } },
-            { key: { email_lower: 1 }, options: { unique: true, sparse: true } },
+            { key: { username: 1 }, options: { unique: true }, note: 'Case-insensitive via the collation.' },
+            { key: { email: 1 }, options: { unique: true }, note: 'Case-insensitive via the collation.' },
         ],
     },
     sessions: {
@@ -283,7 +295,7 @@ export function describeSchema() {
         })),
         indexes: spec.indexes.map(index => ({
             key: index.key,
-            ...(index.options ?? {}),
+            ...index.options,
             ...(index.note ? { note: index.note } : {}),
         })),
     }));
